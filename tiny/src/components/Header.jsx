@@ -3,8 +3,16 @@ import { useLocation } from 'preact-iso';
 import logoIcon from '../assets/icon.png';
 import {icons_house, icons_table} from '../ui/icons'
 
+
+
 export function Header() {
 	const { url } = useLocation();
+
+	const Link = ({ href, children }) => (
+		<a href={href} class={url == href && 'active'}>
+			{children}
+		</a>
+	);
 
 	return (
 		<header class="sidebar">
@@ -12,15 +20,16 @@ export function Header() {
 				<a href="/" class="logo">
 					<img src={logoIcon} />
 				</a>
-				<a href="/" class={url == '/' && 'active'}>
+
+				<Link href="/">
 					{icons_house}
-				</a>
-				<a href="/tables" class={url == '/tables' && 'active'}>
+				</Link>
+				
+				<div className="spacer"></div>
+
+				<Link href="/tables">
 					{icons_table}
-				</a>
-				<a href="/404" class={url == '/404' && 'active'}>
-					404
-				</a>
+				</Link>
 			</nav>
 		</header>
 	);

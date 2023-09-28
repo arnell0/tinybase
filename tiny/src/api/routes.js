@@ -118,7 +118,52 @@ export const db = {
 
 
 
+    getTables: async () => {
+        const tables = [
+            {
+                name: 'users',
+                model: {
+                    username: 'string',
+                    password: 'string',
+                    email: 'string',
+                    role: 'string',
+                },
+            },
+            {
+                name: 'posts',
+                model: {
+                    title: 'string',
+                    content: 'string',
+                },
+            },
+            {
+                name: 'comments',
+                model: {
+                    content: 'string',
+                },
+            },
+        ]
+        return tables
 
+        const session = await Session.verify()
+        if (!session) return false
+
+        const url = `${BASE_API_URL}/tables`
+        const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'auth_token': session.auth_token
+            },
+        })
+        
+        if (res.ok) {
+            const response = await res.json()
+            return response
+        }
+        
+        return false
+    },
 
 
 

@@ -4,27 +4,18 @@ import { LocationProvider, Router, Route } from 'preact-iso';
 import { Header } from './components/Header.jsx';
 import { Login } from './pages/auth/Login.jsx';
 import { NotFound } from './pages/_404.jsx';
+import Tables from './pages/Tables';
 
 import './ui/aui.css';
 import './style.css';
 import { useEffect, useState } from 'preact/hooks';
 
 import { Session } from './api/routes.js'; 
-
-import houseIcon from './assets/house.svg'
  
 function TestComponent() {
 	return (
 		<div>
 			<h1>homes</h1>
-		</div>
-	)
-}
-
-function TestComponent2() {
-	return (
-		<div>
-			<h1>tables</h1>
 		</div>
 	)
 }
@@ -54,13 +45,10 @@ export function App() {
 				<Header />
 				<Router>
 					<Route path="/" component={TestComponent} />
-					<Route path="/tables" component={TestComponent2} />
+					<Route path="/tables" component={Tables} />
 					<BaseRoutes />
 				</Router>
-				<button onClick={() => {
-					Session.destroy()
-					window.location.reload()
-				}}>RESET SESSION</button>
+				<br />
 			</>
 		)
 	}
@@ -74,11 +62,16 @@ export function App() {
 		)
 	}
 
+	const userVerifiedText = userVerified && <p>User Verified</p>
+	const resetVerified = <button onClick={() => {
+		Session.destroy()
+		window.location.reload()
+	}}>RESET SESSION</button>
+
 
 	return (
 		<LocationProvider>
 			<main class="aui sidebar">
-				{userVerified && <h1>User Verified</h1>}
 				{user != null && userVerified ? <PrivateRouter /> : <PublicRouter />}
 			</main>
 		</LocationProvider>

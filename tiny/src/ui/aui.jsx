@@ -19,12 +19,13 @@ export const Button = (props) => {
             variant: "contained",
             color: "primary",
             class: "default",
+            size: "default",
         }
 
         const newObject = {...defaultObject, ...props}
 
         newObject.style['width'] = newObject.fullWidth ? '100%' : 'auto'
-        newObject.class = newObject.class + " " + newObject.variant + ' ' + newObject.color
+        newObject.class = newObject.class + " " + newObject.variant + ' ' + newObject.color + ' ' + newObject.size
 
         setObject(newObject)
     }, [props])
