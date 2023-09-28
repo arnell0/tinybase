@@ -22,12 +22,14 @@
 	-moz-osx-font-smoothing: grayscale;
 	-webkit-text-size-adjust: 100%;
 
-    --default_spacing: 8px;
-    --default_padding: 8px;
+    --default_spacing: 10px;
+    --default_padding: 10px;
     --default_border_radius: 4px;
     --default_border_color: #e6e8eb;
     --default_background: #f8f9fa;
     --default_background_active: #e6e8eb;
+    --default_stroke_color: #7e868c;
+    --default_stroke_active_color: #11181c;
 }
 
 html, body, #app, .aui {
@@ -50,13 +52,31 @@ body {
     padding: 0;
     box-sizing: border-box;
     font-family: 'Lato', Arial, sans-serif;
-    transition: all 0.3s ease-out;
+    transition: all 0.25s ease-out;
 }
 
 .aui {
     /* width: 100%; */
     padding: var(--default_padding);
 }
+
+.aui a {
+    text-decoration: none;
+    color: inherit;
+}
+.aui a:hover {
+    text-decoration: none;
+}
+.aui a:active {
+    text-decoration: none;
+}
+.aui a:focus {
+    text-decoration: none;
+}
+.aui a:visited {
+    text-decoration: none;
+}
+
 
 .aui.sidebar {
     margin-left: 56px;
@@ -346,6 +366,8 @@ input[type="text"] {}
     margin: 0 auto;
 }
 
+/* header */
+/* sidebar */
 .aui header.sidebar {
     position: fixed;
     top: 0;
@@ -365,6 +387,16 @@ input[type="text"] {}
     width: 40px;
     height: 40px;
     padding: var(--default_padding);
+    border-radius: var(--default_border_radius);
+    color: var(--default_stroke_color);
+}
+.aui header.sidebar nav a:hover {
+    background-color: var(--default_background_active);
+    color: var(--default_stroke_active_color);
+}
+.aui header.sidebar nav a.active {
+    background-color: var(--default_background_active);
+    color: var(--default_stroke_active_color);
 }
 .aui header.sidebar nav a.logo {
     padding: 2px;

@@ -16,8 +16,15 @@ import houseIcon from './assets/house.svg'
 function TestComponent() {
 	return (
 		<div>
-			<h1>Test Component</h1>
-			<img src={houseIcon} />
+			<h1>homes</h1>
+		</div>
+	)
+}
+
+function TestComponent2() {
+	return (
+		<div>
+			<h1>tables</h1>
 		</div>
 	)
 }
@@ -47,6 +54,7 @@ export function App() {
 				<Header />
 				<Router>
 					<Route path="/" component={TestComponent} />
+					<Route path="/tables" component={TestComponent2} />
 					<BaseRoutes />
 				</Router>
 				<button onClick={() => {

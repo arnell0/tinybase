@@ -1,7 +1,7 @@
 import { useLocation } from 'preact-iso';
 
 import logoIcon from '../assets/icon.png';
-import houseIcon from '../assets/house.svg';
+import {icons_house, icons_table} from '../ui/icons'
 
 export function Header() {
 	const { url } = useLocation();
@@ -13,7 +13,10 @@ export function Header() {
 					<img src={logoIcon} />
 				</a>
 				<a href="/" class={url == '/' && 'active'}>
-					<img src={houseIcon} />
+					{icons_house}
+				</a>
+				<a href="/tables" class={url == '/tables' && 'active'}>
+					{icons_table}
 				</a>
 				<a href="/404" class={url == '/404' && 'active'}>
 					404
