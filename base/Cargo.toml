@@ -1,0 +1,21 @@
+[package]
+name = "tinybase"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8.5"
+axum-macros = "0.2.0"
+axum = "0.6.20"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1.35"
+tracing-subscriber = "0.3.14"
+serde = { version = "1.0.138", features = ["derive"] }
+serde_json = "1.0"
+tower-http = { version = "0.3.0", features = ["fs", "trace"] }
+rusqlite = { version = "0.29.0", features = ["bundled"] }
+axum-extra = { version = "0.7.7", features = ["query"] }
+jwt-simple = "0.11.6"
+argon2 = "0.5.2"

@@ -12,3 +12,9 @@ Cargo.lock
 # ignore node_modules
 /node_modules
 node_modules
+
+**/node_modules
+**/target
+**/debug
+**/*.rs.bk
+*.pdb

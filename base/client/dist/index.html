@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    hej
+</body>
+
+<script>
+    async function fetchAsync (url) {
+        let response = await fetch(url);
+
+        if (response.type == 'basic') {
+            response = response.text()
+            return response
+        } 
+        
+        response = response.json()
+        return response
+    }
+    window.addEventListener("load", async (event) => {
+        let base_url = window.location.href
+        console.log(base_url)
+
+        console.log("page is fully loaded");
+        const data = await fetchAsync(base_url + "tinybase/v1/users")
+        console.log(data)
+
+        // post {username: "test", password: "test"} to /session
+        const data2 = await fetch(base_url + "tinybase/v1/session", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({username: "superuser", password: "admin"})
+        })
+        .then(response => response.json())
+
+        console.log(data2)
+    });
+</script>
+</html>

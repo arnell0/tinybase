@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    hej
+</body>
+
+<script>
+    async function fetchAsync (url) {
+        let response = await fetch(url);
+        
+        if (response.type == 'basic') {
+            response = response.text()
+            return response
+        } 
+
+        response = response.json()
+        return response
+    }
+    window.addEventListener("load", async (event) => {
+        console.log("page is fully loaded");
+
+
+        let data = await fetchAsync("http://192.168.1.197:3030/tinybase/v1/users")
+        console.log(data)
+        data = await fetchAsync("http://192.168.1.197:3031/tinybase/v1/users")
+        console.log(data)
+    });
+</script>
+</html>
