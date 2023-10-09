@@ -18,3 +18,12 @@ node_modules
 **/debug
 **/*.rs.bk
 *.pdb
+
+*.sqlite
+*.sqlite3
+*.db
+*.sqlitedb
+*.log 
+*.cache
+*.log.*
+*.log-*
