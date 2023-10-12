@@ -92,6 +92,12 @@ function TableEditor(props) {
 		setObject(newObject)
 	}
 
+	const handleDeleteRow = (index) => {
+		const newObject = {...object}
+		newObject.columns.splice(index, 1)
+		setObject(newObject)
+	}
+
 	return (
 		<>
 			{
@@ -173,11 +179,7 @@ function TableEditor(props) {
 															variant="outlined"
 															color="alert"
 															size="slim"
-															onClick={() => {
-																const newObject = {...object}
-																newObject.columns.splice(index, 1)
-																setObject(newObject)
-															}}
+															onClick={handleDeleteRow}
 															visible={index > 1}
 														>
 															Delete
