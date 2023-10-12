@@ -8,7 +8,6 @@ import { Button } from '../../ui/aui'
 export default function Tables() {
 
 	const [data, setData] = useState(null)
-	const 
 
 	useEffect(() => {
 		db.getTables().then((res) => {
