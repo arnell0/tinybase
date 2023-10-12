@@ -125,9 +125,16 @@ h1 {
 
 }
 
+.aui .input {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
 .aui input {
     padding: 10px 15px;
     border: solid 1px #c5c5c5;
+    border-radius: var(--default_border_radius);
     font-size: medium;
 }
 input[type="text"] {}
@@ -154,17 +161,19 @@ input[type="text"] {}
 /* BUTTONS */
 /* default */
 .aui button.default {
-    padding: 10px 15px;
-    font-size: medium;
-    color: white;
+    padding: 6px 8px;
+    font-size: 0.875rem;
+    color: black;
+    background-color: transparent;
     cursor: pointer;
     border: 2px solid transparent;
     font-weight: bold;
     text-transform: uppercase;
     border-radius: var(--default_border_radius);
+    transition: all 0.2s ease-in-out;
 }
 .aui button.default:hover {
-    /* transform: translateY(-1px); */
+    background-color: #f2f2f2;
 }
 .aui button.default:active {
     transform: translateY(0px);
@@ -186,6 +195,7 @@ input[type="text"] {}
 /* colors */
 /* primary */
 .aui button.contained.primary {
+    color: white;
     background-color: #2980b9;
 }
 .aui button.contained.primary:hover {
@@ -197,6 +207,7 @@ input[type="text"] {}
 
 /* secondary */
 .aui button.contained.secondary {
+    color: white;
     background-color: #95a5a6;
 }
 .aui button.contained.secondary:hover {
@@ -208,6 +219,7 @@ input[type="text"] {}
 
 /* success */
 .aui button.contained.success {
+    color: white;
     background-color: #04a466;
 }
 .aui button.contained.success:hover {
@@ -219,6 +231,7 @@ input[type="text"] {}
 
 /* warning */
 .aui button.contained.warning {
+    color: white;
     background-color: #e67e22;
 }
 .aui button.contained.warning:hover {
@@ -230,8 +243,8 @@ input[type="text"] {}
 
 /* alert */
 .aui button.contained.alert {
-    background-color: #e74c3c;
     color: white;
+    background-color: #e74c3c;
 }
 .aui button.contained.alert:hover {
     background-color: #ff6666;
@@ -363,13 +376,13 @@ input[type="text"] {}
     width: 100%;
 }
 .aui table th, .aui table td {
-    padding: 10px 15px;
-    border: solid 1px #c5c5c5;
+    padding: 10px;
     font-size: medium;
 }
 .aui table th {
     background-color: #f7f6f2;
     font-weight: bold;
+    font-size: 0.8rem;
     text-align: left;
 }
 .aui table tr:nth-child(even) td {
@@ -476,7 +489,7 @@ input[type="text"] {}
     padding: 10px;
 }
 .content {
-    flex-grow: 1;
+    
 }
 
 
@@ -486,11 +499,56 @@ input[type="text"] {}
     position: fixed;
     top: 0;
     left: 0;
+    z-index: 100;
+    height: 100%;
+    width: 100%;
+}
+.aui .dialog.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.aui .dialog .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
     height: 100%;
     width: 100%;
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 100;
 }
-.aui .dialog.active {
+
+.aui .dialog .content {
+    min-width: 500px;
+    max-width: 90%;
+    max-height: 90%;
     display: flex;
+    flex-direction: column;
+    background-color: white;
+    padding: var(--default_padding);
+    z-index: 101;
+    overflow-y: scroll;
+}
+.aui .dialog .content.full-screen {
+    min-width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+}
+
+.aui .dialog .content .header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.aui .dialog .content .footer {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
 }

@@ -16,8 +16,9 @@ export const Button = (props) => {
             style: {},
             fullWidth: false,
             disabled: false,
-            variant: "contained",
-            color: "primary",
+            visible: true,
+            variant: "",
+            color: "",
             class: "default",
             size: "default",
         }
@@ -25,6 +26,7 @@ export const Button = (props) => {
         const newObject = {...defaultObject, ...props}
 
         newObject.style['width'] = newObject.fullWidth ? '100%' : 'auto'
+        newObject.style['display'] = newObject.visible ? 'block' : 'none'
         newObject.class = newObject.class + " " + newObject.variant + ' ' + newObject.color + ' ' + newObject.size
 
         setObject(newObject)
@@ -86,7 +88,10 @@ export const Input = (props) => {
         <>
             {
                 object &&
-                <div style={object.style}>
+                <div  
+                    class="input"
+                    style={object.style}
+                >
                     {
                         object.label &&
                         <label htmlFor={object.name}>{object.label}</label>
@@ -231,19 +236,11 @@ export const Dialog = (props) => {
 
     useEffect(() => {
         const defaultObject = {
-            type: "dialog",
-            key: "",
-            name: "",
-            onClick: () => {},
-            style: {},
-            fullWidth: false,
-            disabled: false,
-            variant: "contained",
-            color: "primary",
-            class: "dialog",
-            size: "default",
             title: "",
-            buttonText: "open dialog",
+            style: {},
+            fullScreen: false,
+            class: "dialog",
+            buttonText: "",
             buttonSettings: {
                 variant: "contained",
                 color: "primary",
@@ -254,8 +251,7 @@ export const Dialog = (props) => {
 
         const newObject = {...defaultObject, ...props}
 
-        // newObject.style['width'] = newObject.fullWidth ? '100%' : 'auto'
-        // newObject.class = newObject.class + " " + newObject.variant + ' ' + newObject.color + ' ' + newObject.size
+        newObject.buttonText = newObject.buttonText === "" ? newObject.title : newObject.buttonText
 
         setObject(newObject)
     }, [props])
@@ -265,13 +261,27 @@ export const Dialog = (props) => {
             {
                 object && 
                 <>
-                    <div
-                        style={object.style}
+                    <div 
                         class={object.class + " " + (open ? "active" : "")}
+                        style={object.style}
                     >
-                        <span class="close">&times;</span>
-                        {object.children}
-                    </div> 
+                        <div class={`overlay ${open ? "active" : ""}`} onClick={closeDialog}>
+
+                        </div>
+
+                        <div 
+                            class={`content ${object.fullScreen ? "full-screen" : ""}`}
+                        >
+                            <div class="header">
+                                <h3>{object.title}</h3>
+                            </div>
+                            {object.children}
+                            <div class="footer">
+                                <Button onClick={closeDialog}>Close</Button>
+                            </div>
+                        </div>
+                        
+                    </div>
                     
                     <Button
                         variant={object.buttonSettings.variant}
@@ -283,6 +293,115 @@ export const Dialog = (props) => {
                         {object.buttonText}
                     </Button>
                 </>
+            }
+        </>
+    )
+}
+
+export const Form = (props) => {
+    const [object, setObject] = useState(null)
+
+    useEffect(() => {
+        const defaultObject = {
+            instance: {},
+            style: {},
+        }
+
+        const newObject = {...defaultObject, ...props}
+
+        setObject(newObject)
+
+        console.log(newObject.instance)
+    }, [props])
+
+    const onChange = (e) => {
+        const name = e.target.name
+        let value = e.target.value
+
+        if (typeof object.instance[name] === "number") {
+            value = parseInt(value)
+        } else if (typeof object.instance[name] === "boolean") {
+            value = value === "true"
+        }
+
+        const newObject = {...object.instance}
+        newObject[name] = value
+
+
+        setObject({
+            ...object,
+            instance: newObject
+        })
+    }
+
+    const onSubmit = (e) => {
+        e.preventDefault()
+        props.onSubmit(object.instance)
+    }
+
+    const Field = (name, value, type) => {
+        const checkType = () => {
+            if (typeof value === "number") {
+                return "number"
+            } else if (typeof value === "boolean") {
+                return "checkbox"
+            } else {
+                // check if valid date
+                var date = Date.parse(value)
+                if (!isNaN(date)) {
+                    return "date"
+                }
+
+                // check if valid email
+                var email = value.includes("@")
+                if (email) {
+                    return "email"
+                }
+
+                return "text"
+            }
+        }
+
+        return (
+            <Input
+                name={name}
+                value={value}
+                type={checkType()}
+                onChange={onChange}
+            />
+        )
+    }
+    
+    return (
+        <>
+            {
+                object && 
+                <form
+                    style={object.style}
+                    onSubmit={onSubmit}
+                >
+                    {
+                        object.instance && Object.keys(object.instance).map((key) => {
+                            const value = object.instance[key]
+                            return (
+                                <div>
+                                    <label>{key}</label>
+                                    {Field(key, value)}
+                                </div>
+                            )
+                        })
+                    }
+                    
+
+                    {object.children}
+                    <Button 
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                    >
+                        Save
+                    </Button>
+                </form>
             }
         </>
     )
