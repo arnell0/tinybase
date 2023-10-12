@@ -216,3 +216,74 @@ export const TextArea = (props) => {
         </>
     )
 }
+
+export const Dialog = (props) => {
+    const [object, setObject] = useState(null)
+    const [open, setOpen] = useState(false)
+
+    const openDialog = () => {
+        setOpen(true)
+    }
+
+    const closeDialog = () => {
+        setOpen(false)
+    }
+
+    useEffect(() => {
+        const defaultObject = {
+            type: "dialog",
+            key: "",
+            name: "",
+            onClick: () => {},
+            style: {},
+            fullWidth: false,
+            disabled: false,
+            variant: "contained",
+            color: "primary",
+            class: "dialog",
+            size: "default",
+            title: "",
+            buttonText: "open dialog",
+            buttonSettings: {
+                variant: "contained",
+                color: "primary",
+                size: "slim",
+                fullWidth: false,
+            }
+        }
+
+        const newObject = {...defaultObject, ...props}
+
+        // newObject.style['width'] = newObject.fullWidth ? '100%' : 'auto'
+        // newObject.class = newObject.class + " " + newObject.variant + ' ' + newObject.color + ' ' + newObject.size
+
+        setObject(newObject)
+    }, [props])
+    
+    return (
+        <>
+            {
+                object && 
+                <>
+                    <div
+                        style={object.style}
+                        class={object.class + " " + (open ? "active" : "")}
+                    >
+                        <span class="close">&times;</span>
+                        {object.children}
+                    </div> 
+                    
+                    <Button
+                        variant={object.buttonSettings.variant}
+                        color={object.buttonSettings.color}
+                        size={object.buttonSettings.size}
+                        fullWidth={object.buttonSettings.fullWidth}
+                        onClick={openDialog}
+                    >
+                        {object.buttonText}
+                    </Button>
+                </>
+            }
+        </>
+    )
+}

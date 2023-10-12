@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 
 import { db } from '../../api/routes'
 
-import { Button } from '../../ui/aui'
+import { Button, Dialog } from '../../ui/aui'
 
 
 export default function Tables() {
@@ -16,14 +16,19 @@ export default function Tables() {
 		})
 	}, [])
 
-	return (
+	return ( 	
 		<div class="frame">
 			<div class="menu">
 				<div class="menu-title">
 					<h4>Table Editor</h4>
 				</div>
 				<div class="menu-item">
-					<Button variant="contained" size="slim" fullWidth>Create Table</Button>
+					<Dialog
+						title="Create Table"
+						buttonText="Create Table"
+					>					
+						
+					</Dialog>
 				</div>
 				<div class="menu-item">
 					<h6 class="gray">Tables ({data && data.length})</h6>
