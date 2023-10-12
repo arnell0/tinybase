@@ -17,7 +17,8 @@ export default function Tables() {
 	}, [])
 
 	const handleCreateTable = async (table) => {
-		await db.create('tables', table)
+		// await db.create('tables', table)
+		console.log(table)
 	}
 
 	return ( 	
@@ -98,12 +99,24 @@ function TableEditor(props) {
 		setObject(newObject)
 	}
 
+	const handleAddRow = () => {
+		const newObject = {...object}
+		newObject.columns.push({
+			name: '',
+			type: 'string',
+			defaultValue: '',
+			primary: false,
+		})
+		setObject(newObject)
+	}
+
 	return (
 		<>
 			{
 				object && (
 					<Dialog 
 						title="Create Table"
+						onSubmit={() => props.onSubmit(object)}
 					>
 						<Input
 							label="Name"
@@ -120,79 +133,87 @@ function TableEditor(props) {
 						/>
 						<br />
 
-						<div>
-							<h4>Columns</h4>
-							<table>
-								<thead>
-									<tr>
-										<th>Name</th>
-										<th>Type</th>
-										<th>Default Value</th>
-										<th>Primary</th>
-										<th>Options</th>
-									</tr>
-								</thead>
-								<tbody>
-									{
-										object.columns.map((column, index) => {
-											return (
-												<tr>
-													<td>
-														<Input
-															name={`columns[${index}].name`}
-															value={column.name}
-															onChange={handleNestedChange}
-														/>
-													</td>
-													<td>
-														<select
-															name={`columns[${index}].type`}
-															value={column.type}
-															onChange={handleNestedChange}
-															disabled={column.primary}
-														>
-															<option value="string">String</option>
-															<option value="number">Number</option>
-															<option value="boolean">Boolean</option>
-															<option value="date">Date</option>
-														</select>
-													</td>
-													<td>
-														<Input
-															name={`columns[${index}].defaultValue`}
-															value={column.defaultValue}
-															onChange={handleNestedChange}
-															disabled={column.primary}
-														/>
-													</td>
-													<td>
-														<input
-															type="checkbox"
-															name={`columns[${index}].primary`}
-															checked={column.primary}
-															onChange={handleNestedChange}
-														/>
-													</td>
-													<td></td>
-													<td>
-														<Button
-															variant="outlined"
-															color="alert"
-															size="slim"
-															onClick={handleDeleteRow}
-															visible={index > 1}
-														>
-															Delete
-														</Button>
-													</td>
-												</tr>
-											)
-										})
-									}
-								</tbody>
-							</table>
+						<h4>Columns</h4>
+						<table>
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Type</th>
+									<th>Default Value</th>
+									<th>Primary</th>
+									<th>Options</th>
+								</tr>
+							</thead>
+							<tbody>
+								{
+									object.columns.map((column, index) => {
+										return (
+											<tr>
+												<td>
+													<Input
+														name={`columns.${index}.name`}
+														value={column.name}
+														onChange={handleNestedChange}
+													/>
+												</td>
+												<td>
+													<select
+														name={`columns.${index}.type`}
+														value={column.type}
+														onChange={handleNestedChange}
+														disabled={column.primary}
+													>
+														<option value="string">String</option>
+														<option value="number">Number</option>
+														<option value="boolean">Boolean</option>
+														<option value="date">Date</option>
+													</select>
+												</td>
+												<td>
+													<Input
+														name={`columns.${index}.defaultValue`}
+														value={column.defaultValue}
+														onChange={handleNestedChange}
+														disabled={column.primary}
+													/>
+												</td>
+												<td>
+													<input
+														type="checkbox"
+														name={`columns.${index}.primary`}
+														checked={column.primary}
+														onChange={handleNestedChange}
+														disabled
+													/>
+												</td>
+												<td></td>
+												<td>
+													<Button
+														variant="outlined"
+														color="alert"
+														size="slim"
+														onClick={() => handleDeleteRow(index)}
+														visible={index > 1}
+													>
+														Delete
+													</Button>
+												</td>
+											</tr>
+										)
+									})
+								}
+							</tbody>
+						</table>
+						<div class="mt-10">
+							<Button
+								variant="outlined"
+								color="primary"
+								size="slim"
+								onClick={handleAddRow}
+							> 
+								Add Row
+							</Button>
 						</div>
-
 					</Dialog>
 				)
 			}	

@@ -232,6 +232,9 @@ export const Dialog = (props) => {
 
     const closeDialog = () => {
         setOpen(false)
+        if (object.onSubmit) {
+            object.onSubmit()
+        }
     }
 
     useEffect(() => {
@@ -239,6 +242,7 @@ export const Dialog = (props) => {
             title: "",
             style: {},
             fullScreen: false,
+            onSubmit: null,
             class: "dialog",
             buttonText: "",
             buttonSettings: {
@@ -272,12 +276,20 @@ export const Dialog = (props) => {
                         <div 
                             class={`content ${object.fullScreen ? "full-screen" : ""}`}
                         >
-                            <div class="header">
+                            <div class="header mb-10">
                                 <h3>{object.title}</h3>
                             </div>
                             {object.children}
                             <div class="footer">
                                 <Button onClick={closeDialog}>Close</Button>
+                                {
+                                    object.onSubmit &&
+                                    <Button 
+                                        onClick={closeDialog}
+                                        variant="contained"
+                                        color="success"
+                                    >Save</Button>
+                                }
                             </div>
                         </div>
                         
