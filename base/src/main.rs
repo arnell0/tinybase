@@ -215,7 +215,7 @@ fn db_open_connection(database: &str) -> Result<Connection> {
 
 fn handle_defaults(connection: &Connection) -> Result<()> {
     // create log file if it doesn't exist
-    create_file_if_not_exists("log.txt");
+    create_file_if_not_exists("index.log");
 
     match db_create_table(&connection, "models", "Models table", "name,description,columns,types,options", "TEXT,TEXT,TEXT,TEXT,TEXT", "UNIQUE,,,,") {
         Ok(_) => println!("Created models table"),
@@ -371,7 +371,7 @@ fn db_select(table: &str, _where: &str) -> Result<Vec<serde_json::Value>> {
                 // don't return password
                 continue;
             }
-            
+
             row_object[key] = json!(value);
         }
 
