@@ -137,7 +137,10 @@ export const Select = (props) => {
             children: []
         }
 
-        const newObject = {...defaultObject, ...props}
+        // omit onSubmit function from props
+        const {onSubmit, ...rest} = props
+
+        const newObject = {...defaultObject, ...rest}
 
         newObject.style['width'] = newObject.fullWidth ? '100%' : 'auto'
 
@@ -232,9 +235,11 @@ export const Dialog = (props) => {
 
     const closeDialog = () => {
         setOpen(false)
-        if (object.onSubmit) {
-            object.onSubmit()
-        }
+    }
+
+    const handleSubmit = () => {
+        object.onSubmit()
+        closeDialog()
     }
 
     useEffect(() => {
@@ -285,7 +290,7 @@ export const Dialog = (props) => {
                                 {
                                     object.onSubmit &&
                                     <Button 
-                                        onClick={closeDialog}
+                                        onClick={handleSubmit}
                                         variant="contained"
                                         color="success"
                                     >Save</Button>

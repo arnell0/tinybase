@@ -116,39 +116,21 @@ export const db = {
     //     return false
     // }
 
-
-
-    getTables: async () => {
-        const tables = [
-            {
-                name: 'users',
-                model: {
-                    username: 'string',
-                    password: 'string',
-                    email: 'string',
-                    role: 'string',
-                },
-            },
-            {
-                name: 'posts',
-                model: {
-                    title: 'string',
-                    content: 'string',
-                },
-            },
-            {
-                name: 'comments',
-                model: {
-                    content: 'string',
-                },
-            },
-        ]
-        return tables
-
+    read: async (table, where) => {
         const session = await Session.verify()
         if (!session) return false
 
-        const url = `${BASE_API_URL}/tables`
+        if (table == "models") {
+            return [{"columns":"id,created_at,updated_at,username,password,email,role,apx","created_at":"2023-10-13 11:45:51","description":"Users table","id":"2","name":"users","options":"PRIMARY KEY AUTOINCREMENT,DEFAULT CURRENT_TIMESTAMP,DEFAULT CURRENT_TIMESTAMP,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,","types":"INTEGER,DATETIME,DATETIME,TEXT,TEXT,TEXT,TEXT,TEXT,TEXT","updated_at":"2023-10-13 11:45:51"}]
+        } else if (table == "users") {
+            return [{"apx":"superuser","created_at":"2023-10-13 11:45:56","email":"superuser@localhost","id":"1","role":"superuser","updated_at":"2023-10-13 11:45:56","username":"superuser"},{"apx":"apx","created_at":"2023-10-13 13:13:24","email":"email@email.com","id":"10","role":"role","updated_at":"2023-10-13 13:13:24","username":"username"},{"apx":"apx","created_at":"2023-10-13 13:16:06","email":"email@email.com","id":"11","role":"role","updated_at":"2023-10-13 13:16:06","username":"username"},{"apx":"apx","created_at":"2023-10-13 13:16:06","email":"email2@email.com","id":"12","role":"role","updated_at":"2023-10-13 13:16:06","username":"username2"}]
+        }
+
+        return false
+
+        let where_string = where ? `?${where}` : ''
+
+        const url = `${BASE_API_URL}/${table}${where_string}`
         const res = await fetch(url, {
             method: 'GET',
             headers: {
@@ -163,59 +145,12 @@ export const db = {
         }
         
         return false
-    },
-
-
-
-
-
-
-
-
-
-
-    get: async () => {
-        const session = await Cookies.get('session')
-        if(!session) return false
-
-        try {
-            return JSON.parse(session)
-        } catch (error) {
-            console.log(error)
-            Cookies.remove('session')
-            return false
-        }
-    },
-    verify: async () => {
-        let session = await Cookies.get('session')
-        if(!session) return false
-
-        try {
-            session = JSON.parse(session)
-        } catch (error) {
-            console.log(error)
-            Cookies.remove('session')
-            return false
-        }
-
-        const res = await fetch('https://arecms.se/api/auth/verifyToken', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ headers: { auth_token: session.auth_token } }),
-        })
-        
-        if (res.ok) {
-            console.log('Session verified')
-            return session
-        }
-        
-        Cookies.remove('session')
-        return false
-    },
-    logout: async () => {
-        Cookies.remove('session')
-        window.location.replace(window.location.href)
     }
+
 }
+
+
+
+
+// http://127.0.0.1:3031/tinybase/v1/models?name=users
+// [{"columns":"id,created_at,updated_at,username,password,email,role,apx","created_at":"2023-10-13 11:45:51","description":"Users table","id":"2","name":"users","options":"PRIMARY KEY AUTOINCREMENT,DEFAULT CURRENT_TIMESTAMP,DEFAULT CURRENT_TIMESTAMP,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,","types":"INTEGER,DATETIME,DATETIME,TEXT,TEXT,TEXT,TEXT,TEXT,TEXT","updated_at":"2023-10-13 11:45:51"}]
