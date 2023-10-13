@@ -18,6 +18,7 @@ use std::{io};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::any::{Any, TypeId};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json};
@@ -39,7 +40,6 @@ use argon2::{
 
 struct AppState {
     key: HS256Key,
-    salt: SaltString,
 }
 
 fn create_file_if_not_exists(filename: &str) {
@@ -73,19 +73,6 @@ struct Model {
     columns: String,
     types: String,
     options: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct ResponseData {
-    columns: Vec<String>,
-    values: Vec<Vec<String>>,
-    types: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Response {
-    model: Model,
-    data: ResponseData,
 }
 
 fn db_fetch_model(name: &str) -> Result<Model> {
@@ -209,7 +196,6 @@ fn db_create_table(conn: &Connection, name: &str, description: &str, columns: &s
 fn db_open_connection(database: &str) -> Result<Connection> {
     // create database directory if it doesn't exist
     create_direrctory_if_not_exists("db");
-
     
     let database = format!("db/{}", database);
 
@@ -231,7 +217,7 @@ fn handle_defaults(connection: &Connection) -> Result<()> {
     // create log file if it doesn't exist
     create_file_if_not_exists("log.txt");
 
-    match db_create_table(&connection, "models", "Models table", "name,description,columns,types,options", "TEXT,TEXT,TEXT,TEXT,TEXT", ",,,,") {
+    match db_create_table(&connection, "models", "Models table", "name,description,columns,types,options", "TEXT,TEXT,TEXT,TEXT,TEXT", "UNIQUE,,,,") {
         Ok(_) => println!("Created models table"),
         Err(e) => println!("Error creating models table: {}", e),
     }
@@ -312,7 +298,7 @@ fn handle_defaults(connection: &Connection) -> Result<()> {
 
 
 
-fn db_select(table: &str, _where: &str) -> Result<Response> {
+fn db_select(table: &str, _where: &str) -> Result<Vec<serde_json::Value>> {
     // open connection to database
     let connection = match db_open_connection("db.sqlite") {
         Ok(connection) => connection,
@@ -357,17 +343,16 @@ fn db_select(table: &str, _where: &str) -> Result<Response> {
 
     let columns: Vec<&str> = model.columns.split(",").collect();    
     let types: Vec<&str> = model.types.split(",").collect();
-    let options: Vec<&str> = model.options.split(",").collect();
 
     let mut data = Vec::new();
     
     while let Some(row) = rows.next().unwrap() {
-        let mut value = Vec::new();
-
+        let mut row_object = json!({});
+        
         for i in 0..columns.len() {
             let column = columns[i];
             let column_type = types[i];
-
+            
             let column_value = match column_type {
                 "TEXT" => row.get::<_, String>(column).unwrap(),
                 "INTEGER" => row.get::<_, i64>(column).unwrap().to_string(),
@@ -379,61 +364,21 @@ fn db_select(table: &str, _where: &str) -> Result<Response> {
                 _ => String::new(),
             };
 
-            value.push(column_value);
-        }
-        data.push(value);
-    }
-
-    // v2
-    let mut data_vector = Vec::new();
-    
-    while let Some(item) = rows.next().unwrap() {
-        let mut row = Vec::new();
-
-        for i in 0..columns.len() {
-            let column = columns[i];
-            let column_type = types[i];
-
-            let cell_value = match column_type {
-                "TEXT" => item.get::<_, String>(column).unwrap(),
-                "INTEGER" => item.get::<_, i64>(column).unwrap().to_string(),
-                "REAL" => item.get::<_, f64>(column).unwrap().to_string(),
-                "BLOB" => item.get::<_, String>(column).unwrap(),
-                "NULL" => "NULL".to_string(), 
-                "BOOLEAN" => item.get::<_, bool>(column).unwrap().to_string(),
-                "DATETIME" => item.get::<_, String>(column).unwrap(), 
-                _ => String::new(),
-            };
-
             let key = column.to_string();
-            let value = cell_value;
+            let value = column_value;
 
-            println!("{}: {}", key, value);
-
-            let cell = json!({
-                key: value,
-            });
+            if key == "password" {
+                // don't return password
+                continue;
+            }
             
-            row.push(cell);
+            row_object[key] = json!(value);
         }
-        data_vector.push(row.clone());
+
+        data.push(row_object);
     }
-    // end v2
 
-    
-
-    let data = ResponseData {
-        columns: columns.iter().map(|s| s.to_string()).collect(),
-        types: types.iter().map(|s| s.to_string()).collect(),
-        values: data,
-    };
-    
-    let response = Response {
-        model: model,
-        data: data,
-    };
-
-    Ok(response)
+    Ok(data)
 }
 
 fn db_insert(table: &str, values: Vec<&str>) -> Result<usize> {
@@ -455,16 +400,21 @@ fn db_insert(table: &str, values: Vec<&str>) -> Result<usize> {
         }
     };
 
-    let columns: Vec<&str> = model.columns.split(",").collect();
+    let mut columns: Vec<&str> = model.columns.split(",").collect();
+    // sort columns alphabetically to match sorting fucked by serde__json
+    columns.sort();
 
     let mut query = String::new();
     query.push_str(&format!("INSERT INTO {} (", table));
-
-    for i in 3..columns.len() {
-        if i > 3 {
-            query.push_str(", ");
+    
+    for i in 0..columns.len() {
+        if columns[i] == "id" || columns[i] == "created_at" || columns[i] == "updated_at" {} 
+        else {
+            if i > 0 {
+                query.push_str(", ");
+            }
+            query.push_str(columns[i]);
         }
-        query.push_str(columns[i]);
     }
 
     query.push_str(") VALUES ");
@@ -476,7 +426,7 @@ fn db_insert(table: &str, values: Vec<&str>) -> Result<usize> {
         query.push_str(values[i]);
     }
 
-    // println!("{}", query);
+    println!("{}", query);
 
     let nr_of_created_rows = match conn.execute(
         &query,
@@ -671,11 +621,8 @@ async fn main() {
     // create a new key for the `HS256` JWT algorithm
     let key = HS256Key::generate();
 
-    // create a new salt
-    let salt = SaltString::generate(&mut OsRng);
-
     // create connection to base database
-    let connection = match Connection::open("db.sqlite") {
+    let connection = match db_open_connection("db.sqlite") {
         Ok(connection) => connection,
         Err(e) => {
             println!("Error opening database: {}", e);
@@ -694,7 +641,6 @@ async fn main() {
     // wrap the key in an `Arc` so it can be safely shared across threads
     let state = Arc::new(AppState {
         key: key,
-        salt: salt,
     });
 
     // start server
@@ -702,8 +648,8 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let app = Router::new()
         .route("/tinybase/v1/session", post(post_session)).with_state(state.clone())
-        // .route("/tinybase/v1/session", post(post_session)).with_state(state.clone())
-        .route("/tinybase/v1/:table", get(get_table).post(post_table))
+        .route("/tinybase/v1/:table", get(get_table))
+        .route("/tinybase/v1/:table", post(post_table)).with_state(state.clone())
         .route("/tinybase/v1/:table/:id", get(get_table_by_id).put(put_table_by_id).delete(delete_table_by_id))
         .route("/", get_service(ServeFile::new("client/dist/index.html"))
             .handle_error(|error: io::Error| async move {
@@ -714,25 +660,26 @@ async fn main() {
             }));
 
     // prompt for port
-    println!("Enter port:");
-    let mut port = String::new();
+    // println!("Enter port:");
+    // let mut port = String::new();
 
-    match std::io::stdin().read_line(&mut port) {
-        Ok(_) => (),
-        Err(e) => {
-            println!("Error reading port: {}", e);
-            return;
-        }
-    }
+    // match std::io::stdin().read_line(&mut port) {
+    //     Ok(_) => (),
+    //     Err(e) => {
+    //         println!("Error reading port: {}", e);
+    //         return;
+    //     }
+    // }
 
-    let port = port.trim();
-    let port: u16 = match port.parse() {
-        Ok(port) => port,
-        Err(e) => {
-            println!("Error parsing port: {}", e);
-            return;
-        }
-    };
+    // let port = port.trim();
+    // let port: u16 = match port.parse() {
+    //     Ok(port) => port,
+    //     Err(e) => {
+    //         println!("Error parsing port: {}", e);
+    //         return;
+    //     }
+    // };
+    let port = 3030;
 
     // start server
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -764,13 +711,7 @@ async fn get_table(Path(table): Path<String>, Query(params): Query<HashMap<Strin
         }
     };
     
-    let response = json!({
-        "body": data,
-        "request": {
-            "table": table,
-            "where": _where,
-        },
-    });
+    let response = json!(data);
 
     (StatusCode::OK, response.to_string())
 }
@@ -788,33 +729,22 @@ async fn get_table_by_id(Path((table, id)): Path<(String, String)>) -> impl Into
         }
     };
 
-    let response = json!({
-        "body": data,
-        "request": {
-            "table": table,
-            "id": id,
-            "where": _where,
-        },
-    });
+    let response = json!(data);
 
     (StatusCode::OK, response.to_string())
 }
 // test get/api/users/1
 // curl http://localhost:3030/api/users/1
 
-async fn post_table(Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
-    let request = json!({
-        "table": table,
-    });
-
+async fn post_table(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
     // payload = [
     //     {
-    //         "username": "postman1",
-    //         "password": "postman1",
-    //         "email": "postman1",
-    //         "role": "postman1",
-    //         "apx": "postman1"
-    //     }
+    //     "username": "username",
+    //     "password": "password",
+    //     "email": "email@email.com",
+    //     "role": "role",
+    //     "apx": "apx"
+    // }
     // ]
 
     let mut values = String::new();
@@ -830,7 +760,20 @@ async fn post_table(Path(table): Path<String>, Json(payload): Json<serde_json::V
             if j > 0 {
                 values.push_str(", ");
             }
-            values.push_str(&format!("{}", value));
+            // hash any value with key "password" for now, hash option should be added to interface and datatype should be set to password
+            if key == "password" {
+                let hashed_value = match password_hash(&value.as_str().unwrap()) {
+                    Ok(hashed_value) => hashed_value,
+                    Err(e) => {
+                        println!("Error hashing password: {}", e);
+                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+                    }
+                };
+                values.push_str(&format!("'{}'", hashed_value));
+            } else {
+                values.push_str(&format!("{}", value));
+            }
+
             j += 1;
         }
         values.push_str(")");
@@ -849,8 +792,7 @@ async fn post_table(Path(table): Path<String>, Json(payload): Json<serde_json::V
     };
 
     let response = json!({
-        "body": data,
-        "request": request,
+        "created": data,
     });
 
     (StatusCode::CREATED, response.to_string())
@@ -859,11 +801,6 @@ async fn post_table(Path(table): Path<String>, Json(payload): Json<serde_json::V
 // curl -X POST -H "Content-Type: application/json" -d '[{"username": "test", "password": "test"}]' http://localhost:3030/api/users
 
 async fn put_table_by_id(Path((table, id)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
-    let request = json!({
-        "table": table,
-        "id": id,
-    });
-
     let mut values = String::new();
     let mut i = 0;
 
@@ -889,8 +826,7 @@ async fn put_table_by_id(Path((table, id)): Path<(String, String)>, Json(payload
     };
 
     let response = json!({
-        "body": data,
-        "request": request,
+        "updated": data,
     });
 
     (StatusCode::OK, response.to_string())
@@ -926,40 +862,34 @@ async fn post_session(State(state): State<Arc<AppState>>, Json(payload): Json<se
     let username = payload["username"].as_str().unwrap();
     let password = payload["password"].as_str().unwrap();
 
-    // let _where = format!("username='{}'", username);
+    let _where = format!("username='{}'", username);
 
-    // let count = match db_select_count("users", &_where) {
-    //     Ok(count) => count,
-    //     Err(e) => {
-    //         println!("Error fetching users: {}", e);
-    //         return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
-    //     }
-    // };
+    // fetch user
+    let data = match db_select("users", &_where) {
+        Ok(data) => data,
+        Err(e) => {
+            println!("Error fetching users: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
 
-    // if count == 0 {
-    //     println!("No user found");
-    //     return (StatusCode::UNAUTHORIZED, format!("No user found"));
-    // }
+    if data.len() > 1 {
+        println!("More than one user found");
+        return (StatusCode::UNAUTHORIZED, format!("More than one user found"));
+    } else if data.len() == 0 {
+        println!("No user found");
+        return (StatusCode::UNAUTHORIZED, format!("No user found"));
+    }
 
-    // // fetch user
-    // let data = match db_select("users", &_where) {
-    //     Ok(data) => data,
-    //     Err(e) => {
-    //         println!("Error fetching users: {}", e);
-    //         return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
-    //     }
-    // };
+    let password_hash = data[0]["password"].as_str().unwrap();
 
-    // let password_hash = data.data.values[0][1].clone();
-    // println!("password_hash: {:?}", data.data.values[0]);
-
-    // match password_verify(password, &password_hash) {
-    //     Ok(_) => (),
-    //     Err(e) => {
-    //         println!("Error verifying password: {}", e);
-    //         return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
-    //     }
-    // };
+    match password_verify(password, &password_hash) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error verifying password: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
 
     // generate token
     let DURATION_IN_HOURS = 24;
