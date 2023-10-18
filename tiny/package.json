@@ -9,6 +9,7 @@
 	},
 	"dependencies": {
 		"js-cookie": "^3.0.5",
+		"just-table": "^0.2.7",
 		"preact": "^10.13.1",
 		"preact-iso": "^2.3.1",
 		"preact-render-to-string": "^6.2.1"

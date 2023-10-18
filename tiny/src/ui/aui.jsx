@@ -73,11 +73,12 @@ export const Input = (props) => {
             step: 1,
             autoFocus: false,
             label: "",
+            helperText: "",
         }
 
         const newObject = {...defaultObject, ...props}
 
-        newObject.style['width'] = newObject.fullWidth ? '100%' : 'auto'
+        newObject.style['width'] = newObject.fullWidth ? '100%' : ''
         newObject.style['borderColor'] = newObject.error ? colors.error : 'auto'
 
         setObject(newObject)
@@ -89,16 +90,16 @@ export const Input = (props) => {
             {
                 object &&
                 <div  
-                    class="input"
+                    class={`input ${object.type}`}
                     style={object.style}
                 >
+                    <div>
                     {
                         object.label &&
                         <label htmlFor={object.name}>{object.label}</label>
                     }
                     {
                         <input
-                            // label={label}
                             key={object.key} 
                             type={object.type}
                             placeholder={object.placeholder}
@@ -112,6 +113,84 @@ export const Input = (props) => {
                             step={object.step}
                             autoFocus={object.autoFocus}
                         /> 
+                    }
+                    </div>
+                    {
+                        object.helperText &&
+                        <p>{object.helperText}</p>
+                    }
+                </div>
+            }
+        </>
+    )
+}
+
+export const Checkbox = (props) => {
+    const [object, setObject] = useState(null)
+
+    useEffect(() => {
+        const defaultObject = {
+            type: "checkbox",
+            placeholder: "",
+            key: "",
+            name: "",
+            value: false,
+            onChange: () => {},
+            style: {},
+            fullWidth: false,
+            error: false,
+            disabled: false,
+            readOnly: false,
+            required: false,
+            step: 1,
+            autoFocus: false,
+            label: "",
+            helperText: "",
+        }
+
+        const newObject = {...defaultObject, ...props}
+
+        newObject.style['width'] = newObject.fullWidth ? '100%' : ''
+        newObject.style['borderColor'] = newObject.error ? colors.error : 'auto'
+
+        setObject(newObject)
+    }, [props])
+
+    
+    return (
+        <>
+            {
+                object &&
+                <div  
+                    class={`input checkbox`}
+                    style={object.style}
+                >
+                    <div>
+                    {
+                        object.label &&
+                        <label htmlFor={object.name}>{object.label}</label>
+                    }
+                    {
+                        <input
+                            key={object.key} 
+                            type={object.type}
+                            placeholder={object.placeholder}
+                            name={object.name}
+                            value={object.value}
+                            checked={object.value}
+                            onInput={object.onChange}
+                            style={object.style}
+                            disabled={object.disabled}
+                            readOnly={object.readOnly}
+                            required={object.required}
+                            step={object.step}
+                            autoFocus={object.autoFocus}
+                        /> 
+                    }
+                    </div>
+                    {
+                        object.helperText &&
+                        <p>{object.helperText}</p>
                     }
                 </div>
             }
@@ -134,7 +213,9 @@ export const Select = (props) => {
             readOnly: false,
             required: false,
             autoFocus: false,
-            children: []
+            children: [],
+            label: "",
+            helperText: "",
         }
 
         // omit onSubmit function from props
@@ -150,8 +231,9 @@ export const Select = (props) => {
     
     return (
         <>
-            {
-                object && 
+            { object &&
+            <div class="input">
+                <label htmlFor={object.name}>{object.label}</label>
                 <select
                     key={object.key} 
                     name={object.name}
@@ -165,6 +247,8 @@ export const Select = (props) => {
                 >
                     {object.children}
                 </select> 
+                <p>{object.helperText}</p>
+            </div>
             }
         </>
     )
@@ -230,15 +314,17 @@ export const Dialog = (props) => {
     const [open, setOpen] = useState(false)
 
     const openDialog = () => {
+        object.onOpen && object.onOpen()
         setOpen(true)
     }
 
     const closeDialog = () => {
+        object.onClose && object.onClose()
         setOpen(false)
     }
 
     const handleSubmit = () => {
-        object.onSubmit()
+        object.onSubmit && object.onSubmit()
         closeDialog()
     }
 
@@ -255,12 +341,21 @@ export const Dialog = (props) => {
                 color: "primary",
                 size: "slim",
                 fullWidth: false,
+                hidden: false,
             }
         }
 
         const newObject = {...defaultObject, ...props}
 
         newObject.buttonText = newObject.buttonText === "" ? newObject.title : newObject.buttonText
+
+        if (props.buttonSettings) {
+            newObject.buttonSettings = {...defaultObject.buttonSettings, ...props.buttonSettings}
+        }
+
+        if (props.open) {
+            setOpen(props.open)
+        }
 
         setObject(newObject)
     }, [props])
@@ -300,15 +395,18 @@ export const Dialog = (props) => {
                         
                     </div>
                     
-                    <Button
-                        variant={object.buttonSettings.variant}
-                        color={object.buttonSettings.color}
-                        size={object.buttonSettings.size}
-                        fullWidth={object.buttonSettings.fullWidth}
-                        onClick={openDialog}
-                    >
-                        {object.buttonText}
-                    </Button>
+                    {
+                        object.buttonSettings.hidden === false &&
+                        <Button
+                            variant={object.buttonSettings.variant}
+                            color={object.buttonSettings.color}
+                            size={object.buttonSettings.size}
+                            fullWidth={object.buttonSettings.fullWidth}
+                            onClick={openDialog}
+                        >
+                            {object.buttonText}
+                        </Button>
+                    }
                 </>
             }
         </>

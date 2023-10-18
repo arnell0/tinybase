@@ -1,5 +1,7 @@
 import Cookies from "js-cookie"
 
+const test = true
+
 const BASE_API_URL = `https://${window.location.host}/tinybase/v1`
 
 // all public endpoints that don't need auth_token have their own object
@@ -149,7 +151,105 @@ export const db = {
 
 }
 
+// db object for manipulating tables and their columns
+export const db_table = {
+    create_column: async (table, new_column) => {
+        // {
+        //     "name": "new_column",
+        //     "type": "TEXT",
+        //     "options": "DEFAULT default_value"
+        // }
+        if (test) return true
 
+        const session = await Session.verify()
+        if (!session) return false
+
+        const url = `${BASE_API_URL}/tables/${table}/${new_column.name}}`
+        
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'auth_token': session.auth_token
+            },
+            body: JSON.stringify(new_column),
+        })
+        
+        if (res.ok) {
+            return true
+        }
+        
+        return false
+    },
+    rename_column: async (table, old_column_name, new_column_name) => {
+        if (test) return true
+
+        const session = await Session.verify()
+        if (!session) return false
+
+        const url = `${BASE_API_URL}/tables/${table}/${old_column_name}`
+        
+        const res = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'auth_token': session.auth_token
+            },
+            body: JSON.stringify({ new_column_name }),
+        })
+        
+        if (res.ok) {
+            return true
+        }
+        
+        return false
+    },
+    update_column: async (table, new_column) => {
+        if (test) return true
+
+        const session = await Session.verify()
+        if (!session) return false
+
+        const url = `${BASE_API_URL}/tables/${table}/${new_column.name}`
+        
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'auth_token': session.auth_token
+            },
+            body: JSON.stringify(new_column),
+        })
+        
+        if (res.ok) {
+            return true
+        }
+        
+        return false
+    },
+    delete_column: async (table, column_name) => {
+        if (test) return true
+
+        const session = await Session.verify()
+        if (!session) return false
+
+        const url = `${BASE_API_URL}/tables/${table}/${column_name}`
+        
+        const res = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'auth_token': session.auth_token
+            },
+        })
+        
+        if (res.ok) {
+            return true
+        }
+        
+        return false
+    }
+}
 
 
 // http://127.0.0.1:3031/tinybase/v1/models?name=users

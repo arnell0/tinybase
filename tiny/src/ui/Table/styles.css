@@ -1,0 +1,91 @@
+.just-table table, .just-table thead, .just-table tbody, .just-table th, .just-table td, .just-table tr {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-collapse: collapse;
+    border-spacing: 0;
+    color: inherit;
+}
+
+.just-wrapper {
+
+}
+
+.just-table table {
+    width: 100%;
+    border: 1px solid #ddd;
+}
+
+.just-table thead {
+    top: -1px;
+    background-color: #f2f2f2;
+}
+.just-table thead tr {
+
+}
+.just-table thead tr th {
+    cursor: pointer;
+    user-select: none;
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+}
+.just-table thead tr th div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+
+.just-table tbody {
+    background-color: #fff;
+}
+.just-table tbody tr td {
+    padding: 5px 10px;
+    border-left: 1px solid #ddd;
+}
+.just-table tbody tr td:first-child {
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.just-table tbody tr td div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.just-table tfoot {
+    border: 1px solid #ddd;
+    background-color: #f2f2f2;
+}
+
+.just-table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+
+/* inputs */
+.just-table select {
+    padding: 5px !important;
+}
+
+/* icons */
+.just-table .icon {
+    width: min-content;
+    cursor: pointer;
+    user-select: none;
+    padding: 5px;
+    border-radius: 4px;
+    color: #bdbdbd;
+    transition: all 0.2s ease-out;
+}
+.just-table .icon.expand {
+    
+}
+.just-table .icon:hover {
+    background-color: #ddd;
+    color: #000;
+}
+

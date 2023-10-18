@@ -75,6 +75,339 @@ struct Model {
     options: String,
 }
 
+// ALTER TABLE SCHEMA
+// ADD COLUMN
+fn db_alter_table_add_column(table: &str, column: &str, datatype: &str, options: &str) -> Result<()> {
+    let connection = match db_open_connection("db.sqlite") {
+        Ok(connection) => connection,
+        Err(e) => {
+            println!("Error opening database: {}", e);
+            return Err(e);
+        }
+    };
+
+    let mut query = String::new();
+    query.push_str(&format!("ALTER TABLE {} ADD COLUMN {} {} {}", table, column, datatype, options));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Added column"),
+        Err(e) => {
+            println!("Error adding column: {}", e);
+            return Err(e);
+        },
+    }
+
+    // update model in models table
+    let model = match db_fetch_model(table) {
+        Ok(model) => model,
+        Err(e) => {
+            println!("Error fetching model: {}", e);
+            return Err(e);
+        }
+    };
+
+    let mut model_columns: Vec<&str> = model.columns.split(",").collect();
+    let mut model_types: Vec<&str> = model.types.split(",").collect();
+    let mut model_options: Vec<&str> = model.options.split(",").collect();
+
+    model_columns.push(column);
+    model_types.push(datatype);
+    model_options.push(options);
+
+    let model_columns = model_columns.join(",");
+    let model_types = model_types.join(",");
+    let model_options = model_options.join(",");
+
+    match connection.execute(
+        &format!("UPDATE models SET columns = '{}', types = '{}', options = '{}' WHERE name = '{}'", model_columns, model_types, model_options, table),
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Updated model in models table"),
+        Err(e) => {
+            println!("Error updating model in models table: {}", e);
+            return Err(e);
+        },
+    }
+
+    Ok(())
+}
+
+// RENAME COLUMN
+fn db_alter_table_rename_column(table: &str, column: &str, new_column: &str) -> Result<()> {
+    let connection = match db_open_connection("db.sqlite") {
+        Ok(connection) => connection,
+        Err(e) => {
+            println!("Error opening database: {}", e);
+            return Err(e);
+        }
+    };
+
+    let mut query = String::new();
+    query.push_str(&format!("ALTER TABLE {} RENAME COLUMN {} TO {}", table, column, new_column));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Renamed column"),
+        Err(e) =>{
+            println!("Error renaming column: {}", e);
+            return Err(e);
+        },
+    }
+
+    // update model in models table
+    let model = match db_fetch_model(table) {
+        Ok(model) => model,
+        Err(e) => {
+            println!("Error fetching model: {}", e);
+            return Err(e);
+        }
+    };
+
+    let mut columns: Vec<&str> = model.columns.split(",").collect();
+
+    for i in 0..columns.len() {
+        if columns[i] == column {
+            columns[i] = new_column;
+        }
+    }
+
+    let columns = columns.join(",");
+
+    match connection.execute(
+        &format!("UPDATE models SET columns = '{}' WHERE name = '{}'", columns, table),
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Updated model in models table"),
+        Err(e) => {
+            println!("Error updating model in models table: {}", e);
+            return Err(e);
+        },
+    }
+
+    Ok(())
+}
+
+// UPDATE COLUMN
+fn db_alter_table_update_column(table: &str, column: &str, datatype: &str, options: &str) -> Result<()> {
+    let connection = match db_open_connection("db.sqlite") {
+        Ok(connection) => connection,
+        Err(e) => {
+            println!("Error opening database: {}", e);
+            return Err(e);
+        }
+    };
+
+    // drop any existing temporary table
+    let mut query = String::new();
+    query.push_str(&format!("DROP TABLE IF EXISTS {}_temp", table));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Dropped temporary table"),
+        Err(e) => {
+            println!("Error dropping temporary table: {}", e);
+            return Err(e);
+        },
+    }
+
+    // create temporary table
+    let mut query = String::new();
+
+    query.push_str(&format!("CREATE TABLE IF NOT EXISTS {}_temp (", table));
+
+    // fetch existing model
+    let model = match db_fetch_model(table) {
+        Ok(model) => model,
+        Err(e) => {
+            println!("Error fetching model: {}", e);
+            return Err(e);
+        }
+    };
+
+    let mut model_columns: Vec<&str> = model.columns.split(",").collect();
+    let mut model_types: Vec<&str> = model.types.split(",").collect();
+    let mut model_options: Vec<&str> = model.options.split(",").collect();
+
+    // remove column from model_columns, model_types, model_options
+    let mut index = 0;
+    for i in 0..model_columns.len() {
+        if model_columns[i].eq(column) {
+            println!("Found column");
+            index = i;
+        }
+    }
+
+    model_columns.remove(index);
+    model_types.remove(index);
+    model_options.remove(index);
+
+    // add column to model_columns, model_types, model_options
+    model_columns.push(column);
+    model_types.push(datatype);
+    model_options.push(options);
+    
+    // add existing columns to temporary table
+    for i in 0..model_columns.len() {
+        query.push_str(&format!("{} ", model_columns[i]));
+        query.push_str(&format!("{} {}", model_types[i], model_options[i]));
+        if i < model_columns.len() - 1 {
+            query.push_str(", ");
+        }
+    }
+    
+    query.push_str(")");
+
+    println!("{}", query);
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Created temporary table"),
+        Err(e) => {
+            println!("Error creating temporary table: {}", e);
+            return Err(e);
+        },
+    }
+
+    // copy data from table to temporary table
+    let mut query = String::new();
+    query.push_str(&format!("INSERT INTO {}_temp SELECT * FROM {}", table, table));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Copied data to temporary table"),
+        Err(e) => {
+            println!("Error copying data to temporary table: {}", e);
+            return Err(e);
+        },
+    }
+
+    // drop table
+    let mut query = String::new();
+    query.push_str(&format!("DROP TABLE {}", table));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Dropped table"),
+        Err(e) => {
+            println!("Error dropping table: {}", e);
+            return Err(e);
+        },
+    }
+
+    // rename temporary table to table
+    let mut query = String::new();
+    query.push_str(&format!("ALTER TABLE {}_temp RENAME TO {}", table, table));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Renamed temporary table to table"),
+        Err(e) => {
+            println!("Error renaming temporary table to table: {}", e);
+            return Err(e);
+        },
+    }
+
+    // update model in models table
+    let model_columns = model_columns.join(",");
+    let model_types = model_types.join(",");
+    let model_options = model_options.join(",");
+
+    match connection.execute(
+        &format!("UPDATE models SET columns = '{}', types = '{}', options = '{}' WHERE name = '{}'", model_columns, model_types, model_options, table),
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Updated model in models table"),
+        Err(e) => {
+            println!("Error updating model in models table: {}", e);
+            return Err(e);
+        },
+    }
+
+    Ok(())
+}
+
+// DROP COLUMN
+fn db_alter_table_drop_column(table: &str, column: &str) -> Result<()> {
+    let connection = match db_open_connection("db.sqlite") {
+        Ok(connection) => connection,
+        Err(e) => {
+            println!("Error opening database: {}", e);
+            return Err(e);
+        }
+    };
+
+    let mut query = String::new();
+    query.push_str(&format!("ALTER TABLE {} DROP COLUMN {}", table, column));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Dropped column"),
+        Err(e) => println!("Error dropping column: {}", e),
+    }
+
+    // update model in models table
+    let model = match db_fetch_model(table) {
+        Ok(model) => model,
+        Err(e) => {
+            println!("Error fetching model: {}", e);
+            return Err(e);
+        }
+    };
+
+    let mut columns: Vec<&str> = model.columns.split(",").collect();
+    let mut types: Vec<&str> = model.types.split(",").collect();
+    let mut options: Vec<&str> = model.options.split(",").collect();
+
+    let mut index = 0;
+    for i in 0..columns.len() {
+        if columns[i] == column {
+            index = i;
+        }
+    }
+
+    columns.remove(index);
+    types.remove(index);
+    options.remove(index);
+
+    let columns = columns.join(",");
+    let types = types.join(",");
+    let options = options.join(",");
+
+    match connection.execute(
+        &format!("UPDATE models SET columns = '{}', types = '{}', options = '{}' WHERE name = '{}'", columns, types, options, table),
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Updated model in models table"),
+        Err(e) => {
+            println!("Error updating model in models table: {}", e);
+            return Err(e);
+        },
+    }
+
+    Ok(())
+}
+
+
+
+
+
 fn db_fetch_model(name: &str) -> Result<Model> {
     let connection = match db_open_connection("db.sqlite") {
         Ok(connection) => connection,
@@ -222,7 +555,7 @@ fn handle_defaults(connection: &Connection) -> Result<()> {
         Err(e) => println!("Error creating models table: {}", e),
     }
     
-    match db_create_table(&connection, "users", "Users table", "username,password,email,role,apx", "TEXT,TEXT,TEXT,TEXT,TEXT,TEXT", "NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,") {
+    match db_create_table(&connection, "users", "Users table", "username,password,email,role,apx", "TEXT,TEXT,TEXT,TEXT,TEXT", "NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL") {
         Ok(_) => println!("Created users table"),
         Err(e) => println!("Error creating users table: {}", e),
     }
@@ -648,6 +981,16 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let app = Router::new()
         .route("/tinybase/v1/session", post(post_session)).with_state(state.clone())
+        
+
+        // ALTER TABLE COLUMN
+        .route("/tinybase/v1/tables/:table/:column", 
+            post(route_table_add_column)
+            .put(route_table_update_column)
+            .patch(route_table_rename_column)
+            .delete(route_table_drop_column)
+        ).with_state(state.clone())
+        
         .route("/tinybase/v1/:table", get(get_table))
         .route("/tinybase/v1/:table", post(post_table)).with_state(state.clone())
         .route("/tinybase/v1/:table/:id", get(get_table_by_id).put(put_table_by_id).delete(delete_table_by_id))
@@ -922,3 +1265,104 @@ async fn post_session(State(state): State<Arc<AppState>>, Json(payload): Json<se
 }
 // test post/api/session
 // curl -X POST -H "Content-Type: application/json" -d '{"username": "superuser", "password": "admin"}' http://localhost:3030/api/session
+
+
+// ALTER TABLE COLUMN ROUTES
+async fn route_table_add_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    // payload = {
+    //     "type": "TEXT",
+    //     "options": "NOT NULL"
+    // }
+
+    // name == column
+    let _type = payload["type"].as_str().unwrap();
+    let _options = payload["options"].as_str().unwrap();
+
+    match db_alter_table_add_column(&table, &column, &_type, &_options) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error altering table: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
+    
+    let response = json!({
+        "altered": true,
+    });
+
+    (StatusCode::OK, response.to_string())
+}
+// test post/api/tables/users/new_column
+// curl -X POST -H "Content-Type: application/json" -d '{"type": "TEXT", "options": "NOT NULL DEFAULT default_value"}' http://localhost:3030/api/tables/users/new_column
+
+async fn route_table_update_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    // payload = {
+    //     "type": "TEXT",
+    //     "options": "NOT NULL"
+    // }
+
+    // name == column
+    let _type = payload["type"].as_str().unwrap();
+    let _options = payload["options"].as_str().unwrap();
+
+    match db_alter_table_update_column(&table, &column, &_type, &_options) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error altering table: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
+
+    let response = json!({
+        "altered": true,
+    });
+
+    (StatusCode::OK, response.to_string())
+}
+// test put/api/tables/users/new_column
+// curl -X PUT -H "Content-Type: application/json" -d '{"type": "TEXT", "options": "NOT NULL DEFAULT default_value"}' http://localhost:3030/api/tables/users/new_column
+
+async fn route_table_rename_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    // payload = {
+    //     "name": "new_name",
+    // }
+
+    // original_name == column
+    let new_name = payload["name"].as_str().unwrap();
+
+    match db_alter_table_rename_column(&table, &column, &new_name) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error altering table: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
+
+    let response = json!({
+        "altered": true,
+    });
+
+    (StatusCode::OK, response.to_string())
+}
+// test patch/api/tables/users/new_column
+// curl -X PATCH -H "Content-Type: application/json" -d '{"name": "new_name"}' http://localhost:3030/api/tables/users/new_column
+
+async fn route_table_drop_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>) -> impl IntoResponse {
+   // original_name == column
+
+    match db_alter_table_drop_column(&table, &column) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error altering table: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
+
+    let response = json!({
+        "altered": true,
+    });
+
+    (StatusCode::OK, response.to_string())
+}
+// test delete/api/tables/users/new_column
+// curl -X DELETE http://localhost:3030/api/tables/users/new_column

@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'preact/hooks'
 
-import { db } from '../../api/routes'
+import { db, db_table } from '../../api/routes'
+import { Button, Dialog, Form, Input, Select, TextArea, Checkbox } from '../../ui/aui'
 
-import { Button, Dialog, Form, Input, Select, TextArea } from '../../ui/aui'
+// import Table from '../../ui/Table'
+
+// import Table from 'just-table'
+import Table from '../../ui/Table';
 
 function decodeSQLOptions(optionsString) {
 	const options = {
@@ -54,21 +58,24 @@ function encodeSQLOptions(options) {
 export default function Tables() {
 	const [tables, setTables] = useState(null)
 	const [table, setTable] = useState(null)
+	
+	const [showColumnEditor, setShowColumnEditor] = useState(false)
+	const [column, setColumn] = useState(null)
 
-	const loadTable = async (table) => {
-		let columns = table.columns.split(',')
+	const loadTable = async (_table) => {
+		let columns = _table.columns.split(',')
 		columns = columns.filter((column) => column !== 'password')
 
-		const options = table.options.split(',')
+		const options = _table.options.split(',')
 		const mapped_options = []
 		options.forEach((option) => {
 			const decodedOptions = decodeSQLOptions(option);
 			mapped_options.push(decodedOptions)
 		})
 
-		let types = table.types.split(',')
+		let types = _table.types.split(',')
 
-		const rows = await db.read(table.name)
+		const rows = await db.read(_table.name)
 		const ordered_rows = rows.map((row) => {
 			let ordered_row = {}
 			columns.forEach((column) => {
@@ -78,8 +85,8 @@ export default function Tables() {
 		})
 		
 		let newTable = {
-			name: table.name,
-			description: table.description,
+			name: _table.name,
+			description: _table.description,
 			columns,
 			options: mapped_options,
 			types,
@@ -87,14 +94,24 @@ export default function Tables() {
 		}
 
 		setTable(newTable)
-		console.log(newTable)
+	}
+
+	const refresh = async () => {
+		// find table in tables
+		let _table = tables && table && tables.find(t => t.name === table.name)
+
+		const newTables = await db.read('models')
+		setTables(newTables)
+
+		if (_table) {
+			loadTable(_table)
+		} else {
+			loadTable(newTables[0])
+		}
 	}
 
 	useEffect(() => {
-		db.read('models').then((tables) => {
-			setTables(tables)
-			loadTable(tables[0])
-		})
+		refresh()
 	}, [])
 
 	const handleCreateTable = async (table) => {
@@ -103,11 +120,58 @@ export default function Tables() {
 	}
 
 	const handleSelectTable = (table) => {
-		loadTable(table)
+		refresh()
 	}
 
-	const handleAddColumn = (column) => {
-		
+	const handleAddColumn = async (column) => {
+		const newTable = {...table}
+		newTable.columns.push(column.name)
+
+		const options = {
+			primary: column.primary,
+			autoIncrement: column.autoIncrement,
+			default: column.default,
+			notNull: column.notNull,
+			unique: column.unique,
+		}
+		newTable.options.push(options)
+		newTable.types.push(column.type)
+
+		console.log(newTable)
+
+		setTable(newTable)
+
+
+		// await db.update('models', newTable)
+	}
+
+	const data = table && table.rows.map((row) => {
+		const newRow = {}
+		table.columns.forEach((column) => {
+			newRow[column] = row[column]
+		})
+		return newRow
+	})
+
+	const data_columns = table && table.columns.map((column, index) => {
+		return column + ' (' + table.types[index] + ')'
+	})
+
+
+	const handleColumnClick = (column_name) => {
+		column_name = column_name.split(' (')[0]
+		const column_index = table.columns.findIndex((column) => column === column_name)
+		const column = {
+			name: table.columns[column_index],
+			type: table.types[column_index],
+			default: table.options[column_index].default,
+			primary: table.options[column_index].primary,
+			autoIncrement: table.options[column_index].autoIncrement,
+			notNull: table.options[column_index].notNull,
+			unique: table.options[column_index].unique,
+		}
+		setColumn(column)
+		setShowColumnEditor(true)
 	}
 
 	return ( 	
@@ -140,39 +204,23 @@ export default function Tables() {
 						<>
 							<h4>{table.name}</h4>
 							<p>{table.description}</p>
-							<table>
-								<thead>
-									<tr>
-										{
-											table.columns.map((column, index) => {
-												return (
-													<th>{column} ({table.types[index]})</th>
-												)
-											})
-										}
-										<th>
-											<ColumnEditor onSubmit={handleAddColumn} />
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{
-										table.rows.map((row) => {
-											return (
-												<tr>
-													{
-														table.columns.map((column) => {
-															return (
-																<td>{row[column]}</td>
-															)
-														})
-													}
-												</tr>
-											)
-										})
-									}
-								</tbody>
-							</table>
+
+							<Table 
+								data={data} 
+								columns={data_columns}
+								onRowClick={row => console.log(row)}
+								onColumnClick={column => handleColumnClick(column)}
+								onColumnCreate={() => setShowColumnEditor(true)}
+							/>
+
+							<ColumnEditor 
+								table={table}
+								object={column} 
+								setObject={setColumn} 
+								open={showColumnEditor} 
+								setOpen={setShowColumnEditor} 
+								refresh={refresh}
+							/>
 						</>
 					)	
 				}
@@ -353,30 +401,58 @@ function TableEditor(props) {
 function ColumnEditor(props) {
 	const [object, setObject] = useState(null)
 
-    useEffect(() => {
-        const defaultObject = {
+	const loadObject = async () => {
+		const defaultObject = {
 			name: '',
-			type: 'text',
+			type: 'TEXT',
 			default: null,
+			primary: false,
+			autoIncrement: false,
 			notNull: false,
 			unique: false,
 		}
 
-		const {onSubmit, ...rest} = props
-        const newObject = {...defaultObject, ...rest}
-
+        const newObject = {...defaultObject, ...props.object}
         setObject(newObject)
+	}
+
+    useEffect(() => {
+        loadObject()
     }, [props])
 
+	const handleClose = () => {
+		props.setOpen(false)
+		props.setObject(null)
+		loadObject()
+	}
+
 	const handleChange = (e) => {
+		if (e.target.type === 'checkbox') {
+			setObject({...object, [e.target.name]: e.target.checked})
+			return
+		}
 		setObject({...object, [e.target.name]: e.target.value})
 	}
 
-	const handleSubmit = () => {
-		props.onSubmit(object)
+	const handleSubmit = async () => {
+		if (props.object) {
+			// edit column
+			await db_table.update_column(props.table.name, object)
+
+			if (props.object.name != object.name) {
+				// rename column
+				await db_table.rename_column(props.table.name, props.object.name, object.name)
+			}
+		} else {
+			// create column
+			await db_table.create_column(props.table.name, object)
+		}
+
+		handleClose()
+		props.refresh(props.table)
 	}
 
-	const title = props.name ? `Edit ${props.name}` : 'Create Column'
+	const title = props.object? `Edit column` : 'Create Column'
 
 	return (
 		<>
@@ -385,6 +461,11 @@ function ColumnEditor(props) {
 					<Dialog 
 						title={title}
 						onSubmit={handleSubmit}
+						onClose={handleClose}
+						buttonSettings={{
+							hidden: true,
+						}}
+						open={props.open}
 					>
 						<Input
 							label="Name"
@@ -392,7 +473,7 @@ function ColumnEditor(props) {
 							value={object.name}
 							onChange={handleChange}
 							placeholder="column_name"
-							helperText="Recommended to use lowercase and use an underscore to separate words e.g. column_name"
+							helperText="Recommended to use lowercase and use an underscore to separate words"
 						/>
 
 						<Select
@@ -402,10 +483,10 @@ function ColumnEditor(props) {
 							onChange={handleChange}
 							helperText="The type of data the column will store"
 						>
-							<option value="text">Text</option>
-							<option value="number">Number</option>
-							<option value="boolean">Boolean</option>
-							<option value="date">Date</option>
+							<option value="TEXT">TEXT</option>
+							<option value="INTEGER">INTEGER</option>
+							<option value="BOOLEAN">INTEGER</option>
+							<option value="DATETIME">DATETIME</option>
 						</Select>
 
 						<Input
@@ -417,17 +498,15 @@ function ColumnEditor(props) {
 							placeholder="NULL"
 						/>
 						
-						<Input
-							type="checkbox"
+						<Checkbox
 							label="Primary Key"
 							name="primary"
 							value={object.primary}
 							onChange={handleChange}
 							disabled
-							/>
+						/>
 
-						<Input	
-							type="checkbox"
+						<Checkbox	
 							label="Auto Increment"
 							name="autoIncrement"
 							value={object.autoIncrement}
@@ -435,8 +514,7 @@ function ColumnEditor(props) {
 							disabled
 						/>
 
-						<Input
-							type="checkbox"
+						<Checkbox
 							label="Not Null"
 							name="notNull"
 							value={object.notNull}
@@ -444,8 +522,7 @@ function ColumnEditor(props) {
 							helperText="If checked, the column cannot be null"
 						/>
 
-						<Input
-							type="checkbox"
+						<Checkbox
 							label="Unique"
 							name="unique"
 							value={object.unique}

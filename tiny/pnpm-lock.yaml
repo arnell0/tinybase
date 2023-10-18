@@ -8,6 +8,9 @@ dependencies:
   js-cookie:
     specifier: ^3.0.5
     version: 3.0.5
+  just-table:
+    specifier: ^0.2.7
+    version: 0.2.7
   preact:
     specifier: ^10.13.1
     version: 10.17.1
@@ -1904,6 +1907,10 @@ packages:
       object.assign: 4.1.4
       object.values: 1.1.7
     dev: true
+
+  /just-table@0.2.7:
+    resolution: {integrity: sha512-56g2zfVKXDb/FQDF0UxahBESWbaJA6YtIN/Bm2RkOybgIjCQeEZphktKwq6fNd7SUUInaFI34IoJImF75YdW+g==}
+    dev: false
 
   /keyv@4.5.3:
     resolution: {integrity: sha512-QCiSav9WaX1PgETJ+SpNnx2PRRapJ/oRSXM4VO5OGYGSjrxbKPVFVhB3l2OCbLCk329N8qyAtsJjSjvVBWzEug==}
