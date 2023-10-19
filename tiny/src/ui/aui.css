@@ -158,10 +158,12 @@ h1 {
 }
 
 .aui .checkbox {
+    gap: 0px;
 }
 .aui .input.checkbox > div {
     flex-direction: row-reverse;
     justify-content: flex-end;
+    align-items: center;
 }
 
 .aui .input label {
@@ -575,7 +577,12 @@ input[type="checkbox"] {
     margin-top: auto;
     padding-top: 15px;
 }
-
+.aui .dialog .content .footer div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
 
 
 

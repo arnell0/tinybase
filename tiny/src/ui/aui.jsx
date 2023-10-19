@@ -324,8 +324,15 @@ export const Dialog = (props) => {
     }
 
     const handleSubmit = () => {
-        object.onSubmit && object.onSubmit()
+        object.onSubmit()
         closeDialog()
+    }
+
+    const handleDelete = () => {
+        if (confirm("Are you sure you want to delete this?")) {
+            object.onDelete()
+            closeDialog()
+        }
     }
 
     useEffect(() => {
@@ -381,7 +388,17 @@ export const Dialog = (props) => {
                             </div>
                             {object.children}
                             <div class="footer">
-                                <Button onClick={closeDialog}>Close</Button>
+                                <div>
+                                    <Button onClick={closeDialog}>Close</Button>
+                                    {
+                                        object.onDelete &&
+                                        <Button 
+                                            onClick={handleDelete}
+                                            variant="contained"
+                                            color="alert"
+                                        >Delete</Button>
+                                    }
+                                </div>
                                 {
                                     object.onSubmit &&
                                     <Button 
@@ -418,70 +435,89 @@ export const Form = (props) => {
 
     useEffect(() => {
         const defaultObject = {
-            instance: {},
-            style: {},
+            
         }
 
         const newObject = {...defaultObject, ...props}
 
         setObject(newObject)
-
-        console.log(newObject.instance)
     }, [props])
 
     const onChange = (e) => {
         const name = e.target.name
         let value = e.target.value
 
-        if (typeof object.instance[name] === "number") {
-            value = parseInt(value)
-        } else if (typeof object.instance[name] === "boolean") {
-            value = value === "true"
-        }
-
-        const newObject = {...object.instance}
-        newObject[name] = value
-
-
-        setObject({
-            ...object,
-            instance: newObject
-        })
+        
     }
 
-    const onSubmit = (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault()
-        props.onSubmit(object.instance)
+        props.onSubmit()
     }
 
-    const Field = (name, value, type) => {
-        const checkType = () => {
-            if (typeof value === "number") {
-                return "number"
-            } else if (typeof value === "boolean") {
-                return "checkbox"
-            } else {
-                // check if valid date
-                var date = Date.parse(value)
-                if (!isNaN(date)) {
-                    return "date"
-                }
+    const StringisDate = (value) => {
+        // check if string is a valid date
 
-                // check if valid email
-                var email = value.includes("@")
-                if (email) {
-                    return "email"
-                }
+        
+    }
 
-                return "text"
-            }
+    const Field = ({label, value}) => {
+        // determine field type
+
+        if (typeof value === "boolean") {
+            return (
+                <Checkbox 
+                    name={label}
+                    value={value}
+                    onChange={onChange}
+                />
+            )
         }
+        // else if value is date, time, datetime, etc.
+        else if (typeof value === "string" && value.length > 50) {
+            return (
+                <TextArea
+                    name={label}
+                    value={value}
+                    onChange={onChange}
+                />
+            )
+        }
+        else if (typeof value === "string" && value.includes("\n")) {
+            return (
+                <TextArea 
+                    name={label}
+                    value={value}
+                    onChange={onChange}
+                />
+            )
+        }
+        else if (Array.isArray(value)) {
+            return (
+                <Select 
+                    name={label}
+                    value={value}
+                    onChange={onChange}
+                >
+                    {
+                        value.map((item) => {
+                            return (
+                                <option value={item}>{item}</option>
+                            )
+                        })
+                    }
+                </Select>
+            )
+        }
+        // future: add support for date, time, datetime, etc.
+        // else if (typeof value === "object") {
+        
 
         return (
-            <Input
-                name={name}
+            <Input 
+                type={typeof value}
+                name={label}
                 value={value}
-                type={checkType()}
                 onChange={onChange}
             />
         )
@@ -491,17 +527,13 @@ export const Form = (props) => {
         <>
             {
                 object && 
-                <form
-                    style={object.style}
-                    onSubmit={onSubmit}
-                >
+                <form onSubmit={handleSubmit}>
                     {
-                        object.instance && Object.keys(object.instance).map((key) => {
-                            const value = object.instance[key]
+                        object && Object.keys(object).map((key) => {
+                            const value = object[key]
                             return (
                                 <div>
-                                    <label>{key}</label>
-                                    {Field(key, value)}
+                                    <Field label={key} value={value} />
                                 </div>
                             )
                         })

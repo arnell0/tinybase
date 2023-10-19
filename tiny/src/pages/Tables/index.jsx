@@ -3,9 +3,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { db, db_table } from '../../api/routes'
 import { Button, Dialog, Form, Input, Select, TextArea, Checkbox } from '../../ui/aui'
 
-// import Table from '../../ui/Table'
-
-// import Table from 'just-table'
+import { now } from '../../utils'
 import Table from '../../ui/Table';
 
 function decodeSQLOptions(optionsString) {
@@ -58,9 +56,12 @@ function encodeSQLOptions(options) {
 export default function Tables() {
 	const [tables, setTables] = useState(null)
 	const [table, setTable] = useState(null)
-	
+
 	const [showColumnEditor, setShowColumnEditor] = useState(false)
 	const [column, setColumn] = useState(null)
+
+	const [showRowEditor, setShowRowEditor] = useState(false)
+	const [row, setRow] = useState(null)
 
 	const loadTable = async (_table) => {
 		let columns = _table.columns.split(',')
@@ -123,28 +124,6 @@ export default function Tables() {
 		refresh()
 	}
 
-	const handleAddColumn = async (column) => {
-		const newTable = {...table}
-		newTable.columns.push(column.name)
-
-		const options = {
-			primary: column.primary,
-			autoIncrement: column.autoIncrement,
-			default: column.default,
-			notNull: column.notNull,
-			unique: column.unique,
-		}
-		newTable.options.push(options)
-		newTable.types.push(column.type)
-
-		console.log(newTable)
-
-		setTable(newTable)
-
-
-		// await db.update('models', newTable)
-	}
-
 	const data = table && table.rows.map((row) => {
 		const newRow = {}
 		table.columns.forEach((column) => {
@@ -156,7 +135,6 @@ export default function Tables() {
 	const data_columns = table && table.columns.map((column, index) => {
 		return column + ' (' + table.types[index] + ')'
 	})
-
 
 	const handleColumnClick = (column_name) => {
 		column_name = column_name.split(' (')[0]
@@ -172,6 +150,11 @@ export default function Tables() {
 		}
 		setColumn(column)
 		setShowColumnEditor(true)
+	}
+
+	const hanleRowClick = (row) => {
+		setRow(row)
+		setShowRowEditor(true)
 	}
 
 	return ( 	
@@ -208,7 +191,7 @@ export default function Tables() {
 							<Table 
 								data={data} 
 								columns={data_columns}
-								onRowClick={row => console.log(row)}
+								onRowClick={row => hanleRowClick(row)}
 								onColumnClick={column => handleColumnClick(column)}
 								onColumnCreate={() => setShowColumnEditor(true)}
 							/>
@@ -219,6 +202,15 @@ export default function Tables() {
 								setObject={setColumn} 
 								open={showColumnEditor} 
 								setOpen={setShowColumnEditor} 
+								refresh={refresh}
+							/>
+
+							<RowEditor 
+								table={table}
+								object={row} 
+								setObject={setRow} 
+								open={showRowEditor} 
+								setOpen={setShowRowEditor} 
 								refresh={refresh}
 							/>
 						</>
@@ -436,6 +428,10 @@ function ColumnEditor(props) {
 
 	const handleSubmit = async () => {
 		if (props.object) {
+			// encode options to string
+			const encodedOptions = encodeSQLOptions(object)
+			object.options = encodedOptions
+
 			// edit column
 			await db_table.update_column(props.table.name, object)
 
@@ -452,7 +448,13 @@ function ColumnEditor(props) {
 		props.refresh(props.table)
 	}
 
-	const title = props.object? `Edit column` : 'Create Column'
+	const handleDelete = async () => {
+		await db_table.delete_column(props.table.name, props.object.name)
+		handleClose()
+		props.refresh(props.table)
+	}
+
+	const title = props.object ? `Edit column` : 'Create Column'
 
 	return (
 		<>
@@ -460,12 +462,13 @@ function ColumnEditor(props) {
 				object && (
 					<Dialog 
 						title={title}
-						onSubmit={handleSubmit}
+						open={props.open}
 						onClose={handleClose}
+						onSubmit={handleSubmit}
+						onDelete={handleDelete}
 						buttonSettings={{
 							hidden: true,
 						}}
-						open={props.open}
 					>
 						<Input
 							label="Name"
@@ -485,7 +488,7 @@ function ColumnEditor(props) {
 						>
 							<option value="TEXT">TEXT</option>
 							<option value="INTEGER">INTEGER</option>
-							<option value="BOOLEAN">INTEGER</option>
+							<option value="BOOLEAN">BOOLEAN</option>
 							<option value="DATETIME">DATETIME</option>
 						</Select>
 
@@ -528,6 +531,112 @@ function ColumnEditor(props) {
 							value={object.unique}
 							onChange={handleChange}
 							helperText="If checked, the column cannot have duplicate values"
+						/>
+					</Dialog>
+				)
+			}	
+		</>
+	)
+}
+
+function RowEditor(props) {
+	const [object, setObject] = useState(null)
+
+	const loadObject = async () => {
+		const defaultObject = {
+			created_at: now(),
+			updated_at: now(),
+		}
+
+		// get last id and increment from props.table.rows
+		const rows = props.table.rows
+		const last_id = rows[rows.length - 1].id
+		const new_id = last_id + 1
+		defaultObject.id = new_id
+
+		// get column names and types from props.table and set default values
+		const columns = props.table.columns
+		const types = props.table.types
+		columns.forEach((column, index) => {
+			defaultObject[column] = ''
+			if (types[index] === 'INTEGER') {
+				defaultObject[column] = 0
+			} else if (types[index] === 'BOOLEAN') {
+				defaultObject[column] = false
+			} else if (types[index] === 'DATETIME') {
+				defaultObject[column] = now()
+			}
+		})
+
+        const newObject = {...defaultObject, ...props.object}
+        setObject(newObject)
+	}
+
+    useEffect(() => {
+        loadObject()
+    }, [props])
+
+	const handleClose = () => {
+		props.setOpen(false)
+		props.setObject(null)
+		loadObject()
+	}
+
+	const handleChange = (e) => {
+		if (e.target.type === 'checkbox') {
+			setObject({...object, [e.target.name]: e.target.checked})
+			return
+		}
+		setObject({...object, [e.target.name]: e.target.value})
+	}
+
+	const handleSubmit = async () => {
+		if (props.object) {
+			// encode options to string
+			const encodedOptions = encodeSQLOptions(object)
+			object.options = encodedOptions
+
+			// edit column
+			await db_table.update_column(props.table.name, object)
+
+			if (props.object.name != object.name) {
+				// rename column
+				await db_table.rename_column(props.table.name, props.object.name, object.name)
+			}
+		} else {
+			// create column
+			await db_table.create_column(props.table.name, object)
+		}
+
+		handleClose()
+		props.refresh(props.table)
+	}
+
+	const handleDelete = async () => {
+		await db_table.delete_column(props.table.name, props.object.name)
+		handleClose()
+		props.refresh(props.table)
+	}
+
+	const title = props.object ? `Edit Row` : 'Create Row'
+
+	return (
+		<>
+			{
+				object && (
+					<Dialog 
+						title={title}
+						open={props.open}
+						onClose={handleClose}
+						onSubmit={handleSubmit}
+						onDelete={handleDelete}
+						buttonSettings={{
+							hidden: true,
+						}}
+					>
+						<Form 
+							object={object}
+							setObject={setObject}
 						/>
 					</Dialog>
 				)

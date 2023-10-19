@@ -6,8 +6,9 @@
   - [x] inject artificial index from original data and send that back
 - [x] CRUD rows just-table functions
 - [x] models CRUD in base API
-- [ ] CRUD rows dialog
 - [ ] CRUD columns dialog
+- [ ] CRUD rows dialog
+- [ ] test CRUD columns from client
 - [ ] update function loadTable
 - [ ] CRUD tables backend
 - [ ] CRUD tables frontent
