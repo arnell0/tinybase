@@ -1,4 +1,5 @@
 # TinyBase
+## Small Base, Big Results
 Welcome to Tinybase, your compact yet powerful open-source alternative to Firebase. Tinybase is all about simplicity, efficiency, and local control, packing all the features you need while keeping everything streamlined. Our project embodies the philosophy that less is more, delivering a one-file solution for all your backend needs.
 
 ## Project Description:
