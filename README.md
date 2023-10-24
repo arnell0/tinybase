@@ -2,4 +2,5 @@
 tiny backend
 
 ## Roadmap
-- [] nästa
+- [x] nästa
+- [ ] nästa
