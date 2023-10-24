@@ -23,6 +23,33 @@ Tinybase takes the complexity out of database management, offering a minimalist 
 
 Tinybase's strength lies in its simplicity, locality, and ease of deployment. Whether you're a solo developer or a small team, Tinybase simplifies your database management, offering a local alternative to cloud-based services. Experience the power of Tinybase today and unlock the full potential of your projects while keeping them lean and efficient.
 
+## Getting Started with Tinybase:
+### 1. Download the Executable:
+To begin your journey with Tinybase, simply download the Tinybase executable for your operating system:
+
+- For Windows: [Download Tinybase for Windows]()
+- For macOS: [Download Tinybase for macOS]()
+- For Linux: [Download Tinybase for Linux]()  
+
+### 2. Start and Set Superuser Password and Port:
+After downloading, it's time to start the server and configure it to your liking. Here's how:
+
+- Run the Tinybase executable, and the server will start.
+Once the server is running, you'll be prompted to set a superuser password and port for the Tinybase application. Choose a strong password and specify a port (e.g., 8080). Make sure to note down these details for future use.
+
+### 3. Access Tinybase Locally:
+
+With the server running, open your web browser and enter the following URL in the address bar:
+
+  http://localhost:port
+  Replace "port" with the port number you specified during setup (e.g., 8080). You'll be directed to the Tinybase interface.
+
+### 4. You're Done!
+
+Congratulations! You're now ready to use Tinybase. You have successfully set up your local backend server. Start exploring and managing your data effortlessly with the user-friendly Tinybase interface. Whether you're an experienced developer or new to backends, Tinybase simplifies the process, making it accessible to everyone.
+
+Tinybase's user-friendly setup and intuitive interface ensure that you can get started quickly and focus on what matters most – your data and your projects. Enjoy the simplicity and power of Tinybase as you take control of your backend.
+
 ## Roadmap
 - [x] nästa
 - [ ] nästa
