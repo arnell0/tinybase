@@ -1,6 +1,6 @@
 # TinyBase
 ## Small Base, Big Results
-Welcome to Tinybase, your compact yet powerful open-source alternative to Firebase. Tinybase is all about simplicity, efficiency, and local control, packing all the features you need while keeping everything streamlined. Our project embodies the philosophy that less is more, delivering a one-file solution for all your backend needs.
+Welcome to Tinybase, your compact yet powerful open-source alternative to Supabase. Tinybase is all about simplicity, efficiency, and local control, packing all the features you need while keeping everything streamlined. Our project embodies the philosophy that less is more, delivering a one-file solution for all your backend needs.
 
 ## Project Description:
 Tinybase takes the complexity out of database management, offering a minimalist yet feature-rich approach. This project consists of two main components: the backend, called "base" and the frontend, known as "tiny". Here's a closer look at what makes Tinybase stand out:
