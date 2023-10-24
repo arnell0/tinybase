@@ -405,6 +405,93 @@ fn db_alter_table_drop_column(table: &str, column: &str) -> Result<()> {
 }
 
 
+// ALTER TABLE SCHEMA
+// RENAME TABLE
+fn db_alter_table_rename(table: &str, new_name: &str, description: &str) -> Result<()> {
+    let connection = match db_open_connection("db.sqlite") {
+        Ok(connection) => connection,
+        Err(e) => {
+            println!("Error opening database: {}", e);
+            return Err(e);
+        }
+    };
+    
+    let mut query = String::new();
+    query.push_str(&format!("ALTER TABLE {} RENAME TO {}", table, new_name));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Renamed table"),
+        Err(e) => println!("Error renaming table: {}", e),
+    }
+
+    // update model in models table
+    let model = match db_fetch_model(table) {
+        Ok(model) => model,
+        Err(e) => {
+            println!("Error fetching model: {}", e);
+            return Err(e);
+        }
+    };
+
+    // if description is empty, don't update description
+    let description = if description == "" {
+        model.description
+    } else {
+        description.to_string()
+    };
+
+    match connection.execute(
+        &format!("UPDATE models SET name = '{}', description = '{}' WHERE name = '{}'", new_name, description, table),
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Updated model in models table"),
+        Err(e) => {
+            println!("Error updating model in models table: {}", e);
+            return Err(e);
+        },
+    }
+
+    Ok(())
+}
+
+// UPDATE TABLE
+fn db_alter_table_drop(table: &str) -> Result<()> {
+    let connection = match db_open_connection("db.sqlite") {
+        Ok(connection) => connection,
+        Err(e) => {
+            println!("Error opening database: {}", e);
+            return Err(e);
+        }
+    };
+    
+    let mut query = String::new();
+    query.push_str(&format!("DROP TABLE {}", table));
+
+    match connection.execute(
+        &query,
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Dropped table"),
+        Err(e) => println!("Error dropping table: {}", e),
+    }
+
+    // delete model from models table
+    match connection.execute(
+        &format!("DELETE FROM models WHERE name = '{}'", table),
+        (), // empty list of parameters.
+    ) {
+        Ok(_) => println!("Deleted model from models table"),
+        Err(e) => {
+            println!("Error deleting model from models table: {}", e);
+            return Err(e);
+        },
+    }
+
+    Ok(())
+}
 
 
 
@@ -456,7 +543,15 @@ fn db_fetch_model(name: &str) -> Result<Model> {
     Err(rusqlite::Error::QueryReturnedNoRows)
 }
 
-fn db_create_table(conn: &Connection, name: &str, description: &str, columns: &str, types: &str, options: &str) -> Result<()> {
+fn db_create_table(name: &str, description: &str, columns: &str, types: &str, options: &str) -> Result<()> {
+    let connection = match db_open_connection("db.sqlite") {
+        Ok(connection) => connection,
+        Err(e) => {
+            println!("Error opening database: {}", e);
+            return Err(e);
+        }
+    };
+
     let mut query = String::new();
     query.push_str(&format!("CREATE TABLE IF NOT EXISTS {} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -476,7 +571,7 @@ fn db_create_table(conn: &Connection, name: &str, description: &str, columns: &s
     }
     query.push_str(")");
 
-    match conn.execute(
+    match connection.execute(
         &query,
         (), 
     ) {
@@ -514,7 +609,7 @@ fn db_create_table(conn: &Connection, name: &str, description: &str, columns: &s
         let types = _types.join(",");
         let options = _options.join(",");
 
-        match conn.execute(
+        match connection.execute(
             &format!("INSERT INTO models (name, description, columns, types, options) VALUES ('{}', '{}', '{}', '{}', '{}')", name, description, columns, types, options),
             (), // empty list of parameters.
         ) {
@@ -550,12 +645,12 @@ fn handle_defaults(connection: &Connection) -> Result<()> {
     // create log file if it doesn't exist
     create_file_if_not_exists("index.log");
 
-    match db_create_table(&connection, "models", "Models table", "name,description,columns,types,options", "TEXT,TEXT,TEXT,TEXT,TEXT", "UNIQUE,,,,") {
+    match db_create_table("models", "Models table", "name,description,columns,types,options", "TEXT,TEXT,TEXT,TEXT,TEXT", "UNIQUE,,,,") {
         Ok(_) => println!("Created models table"),
         Err(e) => println!("Error creating models table: {}", e),
     }
     
-    match db_create_table(&connection, "users", "Users table", "username,password,email,role,apx", "TEXT,TEXT,TEXT,TEXT,TEXT", "NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL") {
+    match db_create_table("users", "Users table", "username,password,email,role,apx", "TEXT,TEXT,TEXT,TEXT,TEXT", "NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL") {
         Ok(_) => println!("Created users table"),
         Err(e) => println!("Error creating users table: {}", e),
     }
@@ -982,6 +1077,12 @@ async fn main() {
     let app = Router::new()
         .route("/tinybase/v1/session", post(post_session)).with_state(state.clone())
         
+        // CRUD TABLE
+        .route("/tinybase/v1/tables/:table", 
+            post(route_table_create)
+            .patch(route_table_rename) 
+            .delete(route_table_drop)
+        ).with_state(state.clone())
 
         // ALTER TABLE COLUMN
         .route("/tinybase/v1/tables/:table/:column", 
@@ -991,9 +1092,9 @@ async fn main() {
             .delete(route_table_drop_column)
         ).with_state(state.clone())
         
-        .route("/tinybase/v1/:table", get(get_table))
-        .route("/tinybase/v1/:table", post(post_table)).with_state(state.clone())
-        .route("/tinybase/v1/:table/:id", get(get_table_by_id).put(put_table_by_id).delete(delete_table_by_id))
+        .route("/tinybase/v1/:table", get(route_table_get_rows))
+        .route("/tinybase/v1/:table", post(route_table_create_rows)).with_state(state.clone())
+        .route("/tinybase/v1/:table/:id", get(route_table_get_row_by_id).put(route_table_update_row_by_id).delete(route_table_delete_row_by_id))
         .route("/", get_service(ServeFile::new("client/dist/index.html"))
             .handle_error(|error: io::Error| async move {
                 (
@@ -1033,7 +1134,7 @@ async fn main() {
         .unwrap();
 }
 
-async fn get_table(Path(table): Path<String>, Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
+async fn route_table_get_rows(Path(table): Path<String>, Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
     // loop through params and create where string
     let mut _where = String::new();
     let mut i = 0;
@@ -1061,7 +1162,7 @@ async fn get_table(Path(table): Path<String>, Query(params): Query<HashMap<Strin
 // test get
 // curl http://localhost:3030/tinybase/v1/users
 
-async fn get_table_by_id(Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
+async fn route_table_get_row_by_id(Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
     let _where = format!("id={}", id);
 
     let data = match db_select(&table, &_where) {
@@ -1079,15 +1180,15 @@ async fn get_table_by_id(Path((table, id)): Path<(String, String)>) -> impl Into
 // test get/api/users/1
 // curl http://localhost:3030/api/users/1
 
-async fn post_table(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_create_rows(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
     // payload = [
-    //     {
-    //     "username": "username",
-    //     "password": "password",
-    //     "email": "email@email.com",
-    //     "role": "role",
-    //     "apx": "apx"
-    // }
+        // {
+        //     "username": "username",
+        //     "password": "password",
+        //     "email": "email@email.com",
+        //     "role": "role",
+        //     "apx": "apx"
+        // }
     // ]
 
     let mut values = String::new();
@@ -1143,7 +1244,7 @@ async fn post_table(State(state): State<Arc<AppState>>, Path(table): Path<String
 // test post/api/users
 // curl -X POST -H "Content-Type: application/json" -d '[{"username": "test", "password": "test"}]' http://localhost:3030/api/users
 
-async fn put_table_by_id(Path((table, id)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_update_row_by_id(Path((table, id)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
     let mut values = String::new();
     let mut i = 0;
 
@@ -1177,7 +1278,7 @@ async fn put_table_by_id(Path((table, id)): Path<(String, String)>, Json(payload
 // test post/api/users/1
 // curl -X POST -H "Content-Type: application/json" -d '{"username": "test", "password": "test"}' http://localhost:3030/api/users/1
 
-async fn delete_table_by_id(Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
+async fn route_table_delete_row_by_id(Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
     let _where = format!("id={}", id);
 
     match db_delete(&table, &_where) {
@@ -1266,6 +1367,116 @@ async fn post_session(State(state): State<Arc<AppState>>, Json(payload): Json<se
 // test post/api/session
 // curl -X POST -H "Content-Type: application/json" -d '{"username": "superuser", "password": "admin"}' http://localhost:3030/api/session
 
+
+// CRUD TABLE ROUTES
+async fn route_table_create(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    // payload = {
+    //     "description": "New table",
+    //     "columns": [
+    //         {
+    //             "name": "last_name",  
+    //             "type": "TEXT",
+    //             "options": "NOT NULL"
+    //         },
+    //     ]
+    // }
+
+    // desired structure = {
+    //     "name": "new_table",
+    //     "description": "New table",
+    //     "columns": "name,description",
+    //     "types": "TEXT,TEXT",
+    //     "options": "UNIQUE,"
+    // }
+
+    // transform payload into sql query
+    let mut columns = String::new();
+    let mut types = String::new();
+    let mut options = String::new();
+
+    let mut i = 0;
+
+    for column in payload["columns"].as_array().unwrap() {
+        if i > 0 {
+            columns.push_str(", ");
+            types.push_str(", ");
+            options.push_str(", ");
+        }
+        columns.push_str(&format!("{}", column["name"].as_str().unwrap()));
+        types.push_str(&format!("{}", column["type"].as_str().unwrap()));
+        options.push_str(&format!("{}", column["options"].as_str().unwrap()));
+        i += 1;
+    }
+
+    let name = &table;
+    let description = payload["description"].as_str().unwrap();
+
+    // create table
+    match db_create_table(&name, &description, &columns, &types, &options) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error creating table: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
+
+    let response = json!({
+        "created": true,
+    });
+
+    (StatusCode::OK, response.to_string())
+}
+// test post/api/tables/users
+// curl -X POST -H "Content-Type: application/json" -d '{"description": "New table", "columns": [{"name": "last_name", "type": "TEXT", "options": "NOT NULL"}]}' http://localhost:3030/api/tables/users
+
+async fn route_table_rename(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    // payload = {
+    //     "name": "new_name",
+    //     "description": "New description",
+    // }
+
+    // original_name == table
+    let new_name = payload["name"].as_str().unwrap();
+    let description = payload["description"].as_str().unwrap();
+
+    let name = &table;
+
+    match db_alter_table_rename(&name, &new_name, &description) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error altering table: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+        }
+    };
+
+    let response = json!({
+        "altered": true,
+    });
+
+    (StatusCode::OK, response.to_string())
+}
+// test patch/api/tables/users
+// curl -X PATCH -H "Content-Type: application/json" -d '{"name": "new_name", "description": "New description"}' http://localhost:3030/api/tables/users
+
+async fn route_table_drop(State(state): State<Arc<AppState>>, Path(table): Path<String>) -> impl IntoResponse {
+    let name = &table;
+ 
+     match db_alter_table_drop(&name) {
+         Ok(_) => (),
+         Err(e) => {
+             println!("Error dropping table: {}", e);
+             return (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", e));
+         }
+     };
+ 
+     let response = json!({
+         "altered": true,
+     });
+ 
+     (StatusCode::OK, response.to_string())
+ }
+ // test delete/api/tables/users/new_column
+ // curl -X DELETE http://localhost:3030/api/tables/users/new_column
 
 // ALTER TABLE COLUMN ROUTES
 async fn route_table_add_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
