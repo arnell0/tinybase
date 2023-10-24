@@ -23,7 +23,7 @@ Tinybase takes the complexity out of database management, offering a minimalist 
 
 Tinybase's strength lies in its simplicity, locality, and ease of deployment. Whether you're a solo developer or a small team, Tinybase simplifies your database management, offering a local alternative to cloud-based services. Experience the power of Tinybase today and unlock the full potential of your projects while keeping them lean and efficient.
 
-## Getting Started with Tinybase:
+## Getting Started User:
 ### 1. Download the Executable:
 To begin your journey with Tinybase, simply download the Tinybase executable for your operating system:
 
@@ -50,6 +50,31 @@ Congratulations! You're now ready to use Tinybase. You have successfully set up 
 
 Tinybase's user-friendly setup and intuitive interface ensure that you can get started quickly and focus on what matters most – your data and your projects. Enjoy the simplicity and power of Tinybase as you take control of your backend.
 
+## Getting Started Developer:
+
+
 ## Roadmap
-- [x] nästa
-- [ ] nästa
+### v1
+- [x] hash user passwords on creation and on verification (https://github.com/RustCrypto/password-hashes)
+- [x] clean up db handlers with uniform response in style with how it should respond with JSON i.e. GET /users --> [users] 
+- [x] helper text on inputs
+- [x] make checkboxes prettier
+- [x] CRUD columns just-table functions
+  - [x] inject artificial index from original data and send that back
+- [x] CRUD rows just-table functions
+- [x] models CRUD in base API
+- [x] CRUD columns dialog
+- [ ] CRUD rows dialog
+  - [ ] disable id, created ... in create/edit mode
+- [ ] test CRUD columns from client
+- [ ] update function loadTable
+- [ ] CRUD tables backend
+- [ ] CRUD tables frontent
+### v2
+- [ ] import from csv, excel
+- [ ] import from supabase
+- [ ] create seperate keys for admin and normal users and verifiy/issue against them depending on user level
+- [ ] verify token middleware
+- [ ] restructure axum layout
+- [ ] logging to files and with better description
+- [ ] tests
