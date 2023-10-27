@@ -9,14 +9,13 @@ export function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-		console.log(username, password)
 		const session = await Session.create(username, password)
 		if(!session) {
 			setError(true)
 			return
 		}
 
-        window.location.reload()
+        // window.location.reload()
     }
 
 	return (

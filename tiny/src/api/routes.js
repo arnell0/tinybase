@@ -2,22 +2,23 @@ import Cookies from "js-cookie"
 
 const test = true
 
-const BASE_API_URL = `https://${window.location.host}/tinybase/v1`
+// const BASE_API_URL = `https://${window.location.host}/tinybase/v1`
+const BASE_API_URL = `http://localhost:3031/tinybase/v1`
 
 // all public endpoints that don't need auth_token have their own object
 // session has its own object because it's the only one that doesn't need auth_token because it's the one that gives it
 export const Session = {
     create: async (username, password) => {
         // for testing purposes
-        if (username === 'test' && password === 'test') {
-            const session = {
-                token: 'test',
-                expires_at: Date.now() + 1000000,
-                issued_at: Date.now(),
-            }
-            Cookies.set('session', JSON.stringify(session))
-            return session
-        }
+        // if (username === 'test' && password === 'test') {
+        //     const session = {
+        //         token: 'test',
+        //         expires_at: Date.now() + 1000000,
+        //         issued_at: Date.now(),
+        //     }
+        //     Cookies.set('session', JSON.stringify(session))
+        //     return session
+        // }
 
         const data = { username, password }
         const url = `${BASE_API_URL}/session`
@@ -32,6 +33,7 @@ export const Session = {
         if (res.ok) {
             // {expires_at: 1695742420000, issued_at: 1695656020000, token: 'token'}
             const session = await res.json()
+            console.log(session)
             Cookies.set('session', JSON.stringify(session))
             return session
         }
@@ -96,39 +98,34 @@ export const Session = {
 
 // all private endpoints that need auth_token have a common object
 export const db = {
-    // create: async (table, data) => {
-    //     const session = await Session.verify()
-    //     if (!session) return false
-
-    //     const url = `${BASE_API_URL}/${table}`
-    //     const res = await fetch(url, {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json',
-    //             'auth_token': session.auth_token
-    //         },
-    //         body: JSON.stringify(data),
-    //     })
-        
-    //     if (res.ok) {
-    //         const response = await res.json()
-    //         return response
-    //     }
-        
-    //     return false
-    // }
-
-    read: async (table, where) => {
+    insert_rows: async (table, data) => {
         const session = await Session.verify()
         if (!session) return false
 
-        if (table == "models") {
-            return [{"columns":"id,created_at,updated_at,username,password,email,role,apx","created_at":"2023-10-13 11:45:51","description":"Users table","id":"2","name":"users","options":"PRIMARY KEY AUTOINCREMENT,DEFAULT CURRENT_TIMESTAMP,DEFAULT CURRENT_TIMESTAMP,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,","types":"INTEGER,DATETIME,DATETIME,TEXT,TEXT,TEXT,TEXT,TEXT,TEXT","updated_at":"2023-10-13 11:45:51"}]
-        } else if (table == "users") {
-            return [{"apx":"superuser","created_at":"2023-10-13 11:45:56","email":"superuser@localhost","id":"1","role":"superuser","updated_at":"2023-10-13 11:45:56","username":"superuser"},{"apx":"apx","created_at":"2023-10-13 13:13:24","email":"email@email.com","id":"10","role":"role","updated_at":"2023-10-13 13:13:24","username":"username"},{"apx":"apx","created_at":"2023-10-13 13:16:06","email":"email@email.com","id":"11","role":"role","updated_at":"2023-10-13 13:16:06","username":"username"},{"apx":"apx","created_at":"2023-10-13 13:16:06","email":"email2@email.com","id":"12","role":"role","updated_at":"2023-10-13 13:16:06","username":"username2"}]
+        if (!Array.isArray(data)) {
+            data = [data]
         }
 
+        const url = `${BASE_API_URL}/${table}`
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': session.auth_token
+            },
+            body: JSON.stringify(data),
+        })
+        
+        if (res.ok) {
+            const response = await res.json()
+            return response
+        }
+        
         return false
+    },
+    read: async (table, where) => {
+        const session = await Session.verify()
+        if (!session) return false
 
         let where_string = where ? `?${where}` : ''
 
@@ -137,7 +134,7 @@ export const db = {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'auth_token': session.auth_token
+                'Authorization': session.auth_token
             },
         })
         
@@ -147,8 +144,46 @@ export const db = {
         }
         
         return false
-    }
+    },
+    update_by_id: async (table, id, data) => {
+        const session = await Session.verify()
+        if (!session) return false
 
+        const url = `${BASE_API_URL}/${table}/${id}`
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': session.auth_token
+            },
+            body: JSON.stringify(data),
+        })
+
+        if (res.ok) {
+            return true
+        }
+
+        return false
+    },
+    delete_by_id : async (table, id) => {
+        const session = await Session.verify()
+        if (!session) return false
+
+        const url = `${BASE_API_URL}/${table}/${id}`
+        const res = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': session.auth_token
+            },
+        })
+
+        if (res.ok) {
+            return true
+        }
+
+        return false
+    }
 }
 
 // db object for manipulating tables and their columns
@@ -170,7 +205,7 @@ export const db_table = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'auth_token': session.auth_token
+                'Authorization': session.auth_token
             },
             body: JSON.stringify(new_column),
         })
@@ -193,7 +228,7 @@ export const db_table = {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'auth_token': session.auth_token
+                'Authorization': session.auth_token
             },
             body: JSON.stringify({ new_column_name }),
         })
@@ -216,7 +251,7 @@ export const db_table = {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'auth_token': session.auth_token
+                'Authorization': session.auth_token
             },
             body: JSON.stringify(new_column),
         })
@@ -239,7 +274,7 @@ export const db_table = {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                'auth_token': session.auth_token
+                'Authorization': session.auth_token
             },
         })
         

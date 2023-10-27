@@ -6,12 +6,15 @@
   - [x] inject artificial index from original data and send that back
 - [x] CRUD rows just-table functions
 - [x] models CRUD in base API
-- [ ] CRUD columns dialog
-- [ ] CRUD rows dialog
-- [ ] test CRUD columns from client
+- [x] CRUD columns dialog
+- [x] CRUD rows dialog
+- [x] CRUD tables backend
+- [x] fix test enviroment so it can be run live
+  - [x] cors allow origin
+  - [x] cors allow headers (content type and auth_token)
+- [ ] CRUD tables frontend
 - [ ] update function loadTable
-- [ ] CRUD tables backend
-- [ ] CRUD tables frontent
+- [ ] fix serve client files from base
 
 
 
@@ -26,3 +29,6 @@ v2
 - [ ] publish on github
 - [ ] post on reddit (WIP)
 - [ ] post on hackernews (WIP)
+
+- [ ] multible dbs
+- [ ] 

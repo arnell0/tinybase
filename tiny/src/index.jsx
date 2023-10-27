@@ -11,11 +11,18 @@ import './style.css';
 import { useEffect, useState } from 'preact/hooks';
 
 import { Session } from './api/routes.js'; 
+
  
 function TestComponent() {
 	return (
 		<div>
 			<h1>homes</h1>
+			<button onClick={() => {
+				Session.destroy()
+				window.location.reload()
+			}}>
+				logout
+			</button>
 		</div>
 	)
 }
@@ -27,6 +34,7 @@ export function App() {
 	useEffect(() => {	
 		const verifyUser = async () => {
 			const user = await Session.verify()
+			console.log(user)
             setUser(user)
             setUserVerified(user ? true : false)
 		}

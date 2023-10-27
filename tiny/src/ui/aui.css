@@ -196,6 +196,7 @@ input[type="checkbox"] {
 .aui select {
     padding: 10px 15px;
     border: solid 1px #c5c5c5;
+    border-radius: var(--default_border_radius);
     font-size: medium;
 }
 .aui select option {
@@ -462,6 +463,19 @@ input[type="checkbox"] {
     margin: 0 auto;
 }
 .aui form h1 {
+    margin: 0 auto;
+}
+
+/* integrated */
+.aui form.integrated {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    border: none;
+    font-size: medium;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
     margin: 0 auto;
 }
 

@@ -12,7 +12,7 @@ use axum::{
 
 use axum::extract::Path;
 use axum_extra::extract::Query;
-use tower_http::services::ServeFile;
+// use tower_http::services::ServeFile;
 
 use std::{io};
 use std::net::SocketAddr;
@@ -29,6 +29,16 @@ use jwt_simple::prelude::*;
 
 use std::fs::File;
 use std::io::Write;
+
+
+use axum::http::{Request, Response, Method, header};
+use tower::{ServiceBuilder, ServiceExt, Service};
+use std::convert::Infallible;
+
+use tower_http::cors::CorsLayer;
+use tower_http::cors::Any as CorsAny;
+use tower_http::cors::Cors;
+
 
 use argon2::{
     password_hash::{
@@ -795,10 +805,10 @@ fn db_select(table: &str, _where: &str) -> Result<Vec<serde_json::Value>> {
             let key = column.to_string();
             let value = column_value;
 
-            if key == "password" {
-                // don't return password
-                continue;
-            }
+            // if key == "password" {
+            //     // don't return password
+            //     continue;
+            // }
 
             row_object[key] = json!(value);
         }
@@ -1073,9 +1083,19 @@ async fn main() {
 
     // start server
     // create a route for receiving a SQL query and executing it on the database and returning the result as JSON
+
+    let cors = CorsLayer::new()
+    // allow `GET` and `POST` when accessing the resource
+    .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE])
+    // allow requests from any origin
+    .allow_origin(CorsAny)
+    // allow headers 'Content-Type' and 'auth_token'
+    .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
+
+
     tracing_subscriber::fmt::init();
     let app = Router::new()
-        .route("/tinybase/v1/session", post(post_session)).with_state(state.clone())
+        .route("/tinybase/v1/session", get(route_get_session).post(post_session)).with_state(state.clone())
         
         // CRUD TABLE
         .route("/tinybase/v1/tables/:table", 
@@ -1093,15 +1113,20 @@ async fn main() {
         ).with_state(state.clone())
         
         .route("/tinybase/v1/:table", get(route_table_get_rows))
+            
+
         .route("/tinybase/v1/:table", post(route_table_create_rows)).with_state(state.clone())
         .route("/tinybase/v1/:table/:id", get(route_table_get_row_by_id).put(route_table_update_row_by_id).delete(route_table_delete_row_by_id))
-        .route("/", get_service(ServeFile::new("client/dist/index.html"))
-            .handle_error(|error: io::Error| async move {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Unhandled internal error: {}", error),
-                )
-            }));
+        // .route("/", get_service(ServeFile::new("client/dist/index.html"))
+            // .handle_error(|error: io::Error| async move {
+            //     (
+            //         StatusCode::INTERNAL_SERVER_ERROR,
+            //         format!("Unhandled internal error: {}", error),
+            //     )
+            // })
+                
+        
+        .layer(cors);
 
     // prompt for port
     // println!("Enter port:");
@@ -1299,6 +1324,26 @@ async fn route_table_delete_row_by_id(Path((table, id)): Path<(String, String)>)
 }
 // test delete/api/users/1
 // curl -X DELETE http://localhost:3030/api/users/1
+
+async fn route_get_session(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
+    // loop through params and create where string
+    let mut auth_token = String::new();
+    
+    for (key, value) in params.iter() {
+        if key == "auth_token" {
+            auth_token = value.to_string();
+        }
+    }
+
+    let data = auth_token;
+    
+    let response = json!(data);
+
+    (StatusCode::OK, response.to_string())
+}
+// test get
+// curl http://localhost:3030/tinybase/v1/users
+
 
 async fn post_session(State(state): State<Arc<AppState>>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
     let key = &state.key;

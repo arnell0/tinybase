@@ -431,23 +431,44 @@ export const Dialog = (props) => {
 }
 
 export const Form = (props) => {
+    const [settings, setSettings] = useState(null)
     const [object, setObject] = useState(null)
 
     useEffect(() => {
-        const defaultObject = {
-            
+        const defaultSettings = {
+            integrated: false,
         }
 
-        const newObject = {...defaultObject, ...props}
+        // loop through props and set settings
+        props && Object.keys(props).forEach(key => {
+            if (defaultSettings[key] !== undefined) {
+                defaultSettings[key] = props[key]
+            }
+        })
 
+        const newSettings = {...defaultSettings}
+        setSettings(newSettings)
+
+        const newObject = {...props.object}
         setObject(newObject)
     }, [props])
 
-    const onChange = (e) => {
+    const handleChange = (e) => {
         const name = e.target.name
         let value = e.target.value
 
-        
+        if (e.target.type === "checkbox") {
+            value = e.target.checked
+        } 
+
+        if (typeof object[name] === "number") {
+            value = parseFloat(value)
+        }  
+
+        const newObject = {...object}
+        newObject[name] = value
+        setObject(newObject)
+        props.onChange(newObject)
     }
 
     const handleSubmit = (e) => {
@@ -457,14 +478,32 @@ export const Form = (props) => {
 
     const StringisDate = (value) => {
         // check if string is a valid date
-
-        
+        const date = new Date(value)
+        return date instanceof Date && !isNaN(date) && date.toISOString().slice(0,10) === value
+    }
+    const StringisDateTime = (value) => {
+        // check if string is a valid datetime
+        const date = new Date(value)
+        const isDate = date instanceof Date && !isNaN(date)
+        const isTime = value.split(':').length === 3
+        const isDateTime =  isDate && isTime
+        return isDateTime
     }
 
-    const Field = ({label, value}) => {
-        // determine field type
+    const Field = ({label, value, onChange}) => {
+        let type = typeof value
 
-        if (typeof value === "boolean") {
+        // determine field types
+        
+        // else if value is date, time, datetime, etc.
+       if (typeof value === "string" && StringisDate(value)) {
+            type = "date"
+        }
+        else if (typeof value === "string" && StringisDateTime(value)) {
+            type = "datetime-local"
+        }
+
+        else if (typeof value === "boolean") {
             return (
                 <Checkbox 
                     name={label}
@@ -473,19 +512,9 @@ export const Form = (props) => {
                 />
             )
         }
-        // else if value is date, time, datetime, etc.
-        else if (typeof value === "string" && value.length > 50) {
+        else if (typeof value === "string" && value.length > 50 || typeof value === "string" && value.includes("\n")) {
             return (
                 <TextArea
-                    name={label}
-                    value={value}
-                    onChange={onChange}
-                />
-            )
-        }
-        else if (typeof value === "string" && value.includes("\n")) {
-            return (
-                <TextArea 
                     name={label}
                     value={value}
                     onChange={onChange}
@@ -512,42 +541,115 @@ export const Form = (props) => {
         // future: add support for date, time, datetime, etc.
         // else if (typeof value === "object") {
         
-
         return (
             <Input 
-                type={typeof value}
+                type={type}
                 name={label}
                 value={value}
                 onChange={onChange}
+                label={label}
             />
         )
     }
+
+    const checkType = (value) => {
+        let type = typeof value
     
+         // else if value is date, time, datetime, etc.
+        if (type === "string" && StringisDate(value)) {
+            type = "date"
+        }
+        else if (type === "string" && StringisDateTime(value)) {
+            type = "datetime-local"
+        } else if (type === "boolean") {
+            type = "checkbox"
+        }
+        else if (type === "string" && value.length > 50 || type === "string" && value.includes("\n")) {
+            type = "textarea"
+        }
+        else if (Array.isArray(value)) {
+            type = "select"
+        }
+
+        return type
+    }
+
     return (
         <>
             {
-                object && 
-                <form onSubmit={handleSubmit}>
+                object && <form onSubmit={handleSubmit} class={`${settings && settings.integrated && 'integrated'}`}>
+                     
+
                     {
                         object && Object.keys(object).map((key) => {
                             const value = object[key]
+                            const type = checkType(value)
+
+                            if (type === "select") {
+                                return (
+                                    <Select
+                                        name={key}
+                                        label={key}
+                                        value={value}
+                                        onChange={handleChange}
+                                    >
+                                        {
+                                            value.map((item) => {
+                                                return (
+                                                    <option value={item}>{item}</option>
+                                                )
+                                            })
+                                        }
+                                    </Select>
+                                )
+                            } else if (type === "checkbox") {
+                                return (
+                                    <Checkbox 
+                                        name={key}
+                                        label={key}
+                                        value={value}
+                                        onChange={handleChange}
+                                    />
+                                )
+                            } else if (type === "textarea") {
+                                return (
+                                    <TextArea
+                                        name={key}
+                                        label={key}
+                                        value={value}
+                                        onChange={handleChange}
+                                    />
+                                )
+                            }
+
                             return (
                                 <div>
-                                    <Field label={key} value={value} />
+                                    {/* <Field label={key} value={value} onChange={handleChange} /> */}
+                                      
+                                    <Input 
+                                        type={type}
+                                        name={key}
+                                        label={key}
+                                        value={value}
+                                        onChange={handleChange}
+                                    />
                                 </div>
                             )
                         })
                     }
+
                     
 
-                    {object.children}
-                    <Button 
-                        type="submit"
-                        variant="contained"
-                        color="primary"
-                    >
-                        Save
-                    </Button>
+                    {/* {object.children}
+                    {
+                        settings && !settings.integrated &&
+                        <Button 
+                            type="submit"
+                            variant="contained"
+                            color="primary"
+                            fullWidth={true}
+                        >Submit</Button>
+                    } */}
                 </form>
             }
         </>

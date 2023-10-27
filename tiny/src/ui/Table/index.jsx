@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
+import { Button } from '../aui'
 
 import './styles.css'
+import '../aui.css'
+
 const icons_expand = <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="sbui-icon "><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
 const icons_plus = <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="sbui-icon"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
 
@@ -204,6 +207,10 @@ function Table(props) {
 		props.onRowClick(dataRow)
 	}
 
+	const handleRowCreate = () => {
+		props.onRowCreate()
+	}
+
 	const Tbody = () => {
 		return (
 			<tbody >
@@ -223,6 +230,22 @@ function Table(props) {
 						</td>
 					</tr>
 				))}
+
+				<tr>
+					<td>
+						<div style={{
+							margin: '0 auto',
+						}}>
+							<div class="icon expand" onClick={handleRowCreate}>{icons_plus}</div>
+						</div>
+					</td>
+
+					{columns.length > 0 && columns.map((column, index) => (
+						<td key={index}>
+							
+						</td>
+					))}
+				</tr>
 			</tbody>
 		)
 	}
@@ -338,7 +361,21 @@ function Table(props) {
 				settings.search === true && 
 				<tr>
 					<td colSpan={columns.length + 1}>
-					<	SearchBox values={extractBaseValues(props.data)} setValues={handleSearch} fuzzySearch={settings.fuzzySearch} />
+						<div style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '20px',
+						}}>
+							<SearchBox values={extractBaseValues(props.data)} setValues={handleSearch} />
+							<Button 
+								variant='contained'
+								color='success'
+								onClick={handleRowCreate}
+								size='slim'
+							>
+								Insert row
+							</Button>
+						</div>
 					</td>
 				</tr> 
 			}

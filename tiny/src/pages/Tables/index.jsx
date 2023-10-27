@@ -3,7 +3,6 @@ import { useEffect, useState } from 'preact/hooks'
 import { db, db_table } from '../../api/routes'
 import { Button, Dialog, Form, Input, Select, TextArea, Checkbox } from '../../ui/aui'
 
-import { now } from '../../utils'
 import Table from '../../ui/Table';
 
 function decodeSQLOptions(optionsString) {
@@ -101,7 +100,10 @@ export default function Tables() {
 		// find table in tables
 		let _table = tables && table && tables.find(t => t.name === table.name)
 
-		const newTables = await db.read('models')
+		let newTables = await db.read('models')
+		// omit models table
+		newTables = newTables.filter((x) => x.name !== 'models')
+
 		setTables(newTables)
 
 		if (_table) {
@@ -120,8 +122,8 @@ export default function Tables() {
 		console.log(table)
 	}
 
-	const handleSelectTable = (table) => {
-		refresh()
+	const handleSelectTable = async (table) => {
+		await loadTable(table)
 	}
 
 	const data = table && table.rows.map((row) => {
@@ -192,6 +194,7 @@ export default function Tables() {
 								data={data} 
 								columns={data_columns}
 								onRowClick={row => hanleRowClick(row)}
+								onRowCreate={() => setShowRowEditor(true)}
 								onColumnClick={column => handleColumnClick(column)}
 								onColumnCreate={() => setShowColumnEditor(true)}
 							/>
@@ -544,31 +547,53 @@ function RowEditor(props) {
 
 	const loadObject = async () => {
 		const defaultObject = {
-			created_at: now(),
-			updated_at: now(),
+			created_at: 'now()',
+			updated_at: 'now()',
 		}
 
-		// get last id and increment from props.table.rows
-		const rows = props.table.rows
-		const last_id = rows[rows.length - 1].id
-		const new_id = last_id + 1
-		defaultObject.id = new_id
-
-		// get column names and types from props.table and set default values
+		// get column names and types from props.table
 		const columns = props.table.columns
 		const types = props.table.types
-		columns.forEach((column, index) => {
-			defaultObject[column] = ''
-			if (types[index] === 'INTEGER') {
-				defaultObject[column] = 0
-			} else if (types[index] === 'BOOLEAN') {
-				defaultObject[column] = false
-			} else if (types[index] === 'DATETIME') {
-				defaultObject[column] = now()
-			}
-		})
+		
+		if (props.object) {
+			// use types to convert props.object values to correct type
+			columns.forEach((column, index) => {
+				defaultObject[column] = props.object[column]
+				if (types[index] === 'INTEGER') {
+					defaultObject[column] = parseInt(props.object[column])
+				} else if (types[index] === 'BOOLEAN') {
+					defaultObject[column] = props.object[column] === 'true'
+				} else if (types[index] === 'DATETIME') {
+					defaultObject[column] = props.object[column]
+				}
+			})
+		} else {
+			// use types to set default values
+			columns.forEach((column, index) => {
+				defaultObject[column] = ''
+				if (types[index] === 'INTEGER') {
+					defaultObject[column] = 0
+				} else if (types[index] === 'BOOLEAN') {
+					defaultObject[column] = false
+				} else if (types[index] === 'DATETIME') {
+					defaultObject[column] = 'now()'
+				}
+			})
 
-        const newObject = {...defaultObject, ...props.object}
+			// get last id and increment from props.table.rows
+			const rows = props.table.rows
+			const last_id = parseInt(rows[rows.length - 1].id)
+			const new_id = last_id + 1
+			defaultObject.id = new_id
+		}
+
+		// sort object by order in columns
+		const newObject = {}
+		
+		columns.forEach((column) => {
+			newObject[column] = defaultObject[column]
+		})
+		
         setObject(newObject)
 	}
 
@@ -582,30 +607,11 @@ function RowEditor(props) {
 		loadObject()
 	}
 
-	const handleChange = (e) => {
-		if (e.target.type === 'checkbox') {
-			setObject({...object, [e.target.name]: e.target.checked})
-			return
-		}
-		setObject({...object, [e.target.name]: e.target.value})
-	}
-
 	const handleSubmit = async () => {
 		if (props.object) {
-			// encode options to string
-			const encodedOptions = encodeSQLOptions(object)
-			object.options = encodedOptions
-
-			// edit column
-			await db_table.update_column(props.table.name, object)
-
-			if (props.object.name != object.name) {
-				// rename column
-				await db_table.rename_column(props.table.name, props.object.name, object.name)
-			}
+			await db.update_by_id(props.table.name, object.id, object)
 		} else {
-			// create column
-			await db_table.create_column(props.table.name, object)
+			await db.insert_rows(props.table.name, object)
 		}
 
 		handleClose()
@@ -613,12 +619,12 @@ function RowEditor(props) {
 	}
 
 	const handleDelete = async () => {
-		await db_table.delete_column(props.table.name, props.object.name)
+		await db.delete_by_id(props.table.name, object.id)
 		handleClose()
 		props.refresh(props.table)
 	}
 
-	const title = props.object ? `Edit Row` : 'Create Row'
+	const title = props.object ? `Edit Row` : 'Insert Row'
 
 	return (
 		<>
@@ -629,14 +635,16 @@ function RowEditor(props) {
 						open={props.open}
 						onClose={handleClose}
 						onSubmit={handleSubmit}
-						onDelete={handleDelete}
+						onDelete={props.object && handleDelete}
 						buttonSettings={{
 							hidden: true,
 						}}
 					>
 						<Form 
 							object={object}
-							setObject={setObject}
+							onChange={setObject}
+							onSubmit={handleSubmit}
+							integrated
 						/>
 					</Dialog>
 				)
