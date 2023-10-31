@@ -54,7 +54,6 @@ Tinybase's user-friendly setup and intuitive interface ensure that you can get s
 
 
 ## Roadmap
-### v1
 - [x] hash user passwords on creation and on verification (https://github.com/RustCrypto/password-hashes)
 - [x] clean up db handlers with uniform response in style with how it should respond with JSON i.e. GET /users --> [users] 
 - [x] helper text on inputs
@@ -64,17 +63,35 @@ Tinybase's user-friendly setup and intuitive interface ensure that you can get s
 - [x] CRUD rows just-table functions
 - [x] models CRUD in base API
 - [x] CRUD columns dialog
-- [ ] CRUD rows dialog
-  - [ ] disable id, created ... in create/edit mode
-- [ ] test CRUD columns from client
+- [x] CRUD rows dialog
+- [x] CRUD tables backend
+- [x] fix test enviroment so it can be run live
+  - [x] cors allow origin
+  - [x] cors allow headers (content type and auth_token)
+- [ ] CRUD sessions
+- [ ] verify token middleware
+- [ ] CRUD tables frontend
 - [ ] update function loadTable
-- [ ] CRUD tables backend
-- [ ] CRUD tables frontent
-### v2
+- [ ] fix serve client files from base
+
+
+
+v2
 - [ ] import from csv, excel
 - [ ] import from supabase
 - [ ] create seperate keys for admin and normal users and verifiy/issue against them depending on user level
-- [ ] verify token middleware
 - [ ] restructure axum layout
 - [ ] logging to files and with better description
 - [ ] tests
+- [ ] publish on github
+- [ ] post on reddit (WIP)
+- [ ] post on hackernews (WIP)
+
+- [ ] multible dbs
+
+
+
+## AUTH
+post username and password to /session
+returns token
+use token in header for all other requests as Bearer token

@@ -8,7 +8,9 @@ use axum::{
     routing::{get, post, get_service},
     http::StatusCode,
     response::IntoResponse,
-    Json, Router};
+    Json, Router,
+    middleware::{self, Next},
+};
 
 use axum::extract::Path;
 use axum_extra::extract::Query;
@@ -1044,7 +1046,6 @@ fn password_verify(password: &str, password_hash: &str) -> Result<()> {
 
     match Argon2::default().verify_password(password.as_bytes(), &parsed_hash) {
         Ok(_) => {
-            println!("Password verified");
             Ok(())
         },
         Err(e) => {
@@ -1095,7 +1096,7 @@ async fn main() {
 
     tracing_subscriber::fmt::init();
     let app = Router::new()
-        .route("/tinybase/v1/session", get(route_get_session).post(post_session)).with_state(state.clone())
+        .route("/tinybase/v1/session", get(route_verify_session).post(post_session)).with_state(state.clone())
         
         // CRUD TABLE
         .route("/tinybase/v1/tables/:table", 
@@ -1112,11 +1113,11 @@ async fn main() {
             .delete(route_table_drop_column)
         ).with_state(state.clone())
         
-        .route("/tinybase/v1/:table", get(route_table_get_rows))
+        .route("/tinybase/v1/:table", get(route_table_get_rows)).with_state(state.clone())
             
 
         .route("/tinybase/v1/:table", post(route_table_create_rows)).with_state(state.clone())
-        .route("/tinybase/v1/:table/:id", get(route_table_get_row_by_id).put(route_table_update_row_by_id).delete(route_table_delete_row_by_id))
+        .route("/tinybase/v1/:table/:id", get(route_table_get_row_by_id).put(route_table_update_row_by_id).delete(route_table_delete_row_by_id)).with_state(state.clone())
         // .route("/", get_service(ServeFile::new("client/dist/index.html"))
             // .handle_error(|error: io::Error| async move {
             //     (
@@ -1159,7 +1160,39 @@ async fn main() {
         .unwrap();
 }
 
-async fn route_table_get_rows(Path(table): Path<String>, Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
+fn middleware_auth(State(state): State<Arc<AppState>>, headers: header::HeaderMap) -> bool {
+    let auth_header = match headers.get(header::AUTHORIZATION) {
+        Some(auth_header) => auth_header,
+        None => {
+            return false;
+        }
+    };
+
+    let auth_header = auth_header.to_str().unwrap();
+
+    // remove "Bearer " from auth_header
+    let token = auth_header.replace("Bearer ", "");
+        
+    // verify token
+    let key = &state.key;
+    
+    match token_verify(&key, &token) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error verifying token: {}", e);
+            return false;
+        }
+    };
+
+    true
+}
+
+async fn route_table_get_rows(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path(table): Path<String>, Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     // loop through params and create where string
     let mut _where = String::new();
     let mut i = 0;
@@ -1184,10 +1217,14 @@ async fn route_table_get_rows(Path(table): Path<String>, Query(params): Query<Ha
 
     (StatusCode::OK, response.to_string())
 }
-// test get
-// curl http://localhost:3030/tinybase/v1/users
 
-async fn route_table_get_row_by_id(Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
+
+async fn route_table_get_row_by_id(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     let _where = format!("id={}", id);
 
     let data = match db_select(&table, &_where) {
@@ -1202,10 +1239,13 @@ async fn route_table_get_row_by_id(Path((table, id)): Path<(String, String)>) ->
 
     (StatusCode::OK, response.to_string())
 }
-// test get/api/users/1
-// curl http://localhost:3030/api/users/1
 
 async fn route_table_create_rows(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     // payload = [
         // {
         //     "username": "username",
@@ -1266,10 +1306,13 @@ async fn route_table_create_rows(State(state): State<Arc<AppState>>, Path(table)
 
     (StatusCode::CREATED, response.to_string())
 }
-// test post/api/users
-// curl -X POST -H "Content-Type: application/json" -d '[{"username": "test", "password": "test"}]' http://localhost:3030/api/users
 
-async fn route_table_update_row_by_id(Path((table, id)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_update_row_by_id(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path((table, id)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     let mut values = String::new();
     let mut i = 0;
 
@@ -1300,10 +1343,13 @@ async fn route_table_update_row_by_id(Path((table, id)): Path<(String, String)>,
 
     (StatusCode::OK, response.to_string())
 }
-// test post/api/users/1
-// curl -X POST -H "Content-Type: application/json" -d '{"username": "test", "password": "test"}' http://localhost:3030/api/users/1
 
-async fn route_table_delete_row_by_id(Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
+async fn route_table_delete_row_by_id(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path((table, id)): Path<(String, String)>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     let _where = format!("id={}", id);
 
     match db_delete(&table, &_where) {
@@ -1322,28 +1368,18 @@ async fn route_table_delete_row_by_id(Path((table, id)): Path<(String, String)>)
 
     (StatusCode::OK, response.to_string())
 }
-// test delete/api/users/1
-// curl -X DELETE http://localhost:3030/api/users/1
 
-async fn route_get_session(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
-    // loop through params and create where string
-    let mut auth_token = String::new();
-    
-    for (key, value) in params.iter() {
-        if key == "auth_token" {
-            auth_token = value.to_string();
-        }
-    }
+async fn route_verify_session(State(state): State<Arc<AppState>>, headers: header::HeaderMap) ->  impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
 
-    let data = auth_token;
-    
-    let response = json!(data);
-
+    let response = json!({
+        "message": "Authorized"
+    });
     (StatusCode::OK, response.to_string())
 }
-// test get
-// curl http://localhost:3030/tinybase/v1/users
-
 
 async fn post_session(State(state): State<Arc<AppState>>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
     let key = &state.key;
@@ -1409,12 +1445,15 @@ async fn post_session(State(state): State<Arc<AppState>>, Json(payload): Json<se
 
     (StatusCode::OK, response.to_string())
 }
-// test post/api/session
-// curl -X POST -H "Content-Type: application/json" -d '{"username": "superuser", "password": "admin"}' http://localhost:3030/api/session
 
 
 // CRUD TABLE ROUTES
-async fn route_table_create(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_create(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     // payload = {
     //     "description": "New table",
     //     "columns": [
@@ -1471,10 +1510,13 @@ async fn route_table_create(State(state): State<Arc<AppState>>, Path(table): Pat
 
     (StatusCode::OK, response.to_string())
 }
-// test post/api/tables/users
-// curl -X POST -H "Content-Type: application/json" -d '{"description": "New table", "columns": [{"name": "last_name", "type": "TEXT", "options": "NOT NULL"}]}' http://localhost:3030/api/tables/users
 
-async fn route_table_rename(State(state): State<Arc<AppState>>, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_rename(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     // payload = {
     //     "name": "new_name",
     //     "description": "New description",
@@ -1500,10 +1542,13 @@ async fn route_table_rename(State(state): State<Arc<AppState>>, Path(table): Pat
 
     (StatusCode::OK, response.to_string())
 }
-// test patch/api/tables/users
-// curl -X PATCH -H "Content-Type: application/json" -d '{"name": "new_name", "description": "New description"}' http://localhost:3030/api/tables/users
 
-async fn route_table_drop(State(state): State<Arc<AppState>>, Path(table): Path<String>) -> impl IntoResponse {
+async fn route_table_drop(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path(table): Path<String>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     let name = &table;
  
      match db_alter_table_drop(&name) {
@@ -1520,11 +1565,14 @@ async fn route_table_drop(State(state): State<Arc<AppState>>, Path(table): Path<
  
      (StatusCode::OK, response.to_string())
  }
- // test delete/api/tables/users/new_column
- // curl -X DELETE http://localhost:3030/api/tables/users/new_column
 
 // ALTER TABLE COLUMN ROUTES
-async fn route_table_add_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_add_column(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     // payload = {
     //     "type": "TEXT",
     //     "options": "NOT NULL"
@@ -1548,10 +1596,13 @@ async fn route_table_add_column(State(state): State<Arc<AppState>>, Path((table,
 
     (StatusCode::OK, response.to_string())
 }
-// test post/api/tables/users/new_column
-// curl -X POST -H "Content-Type: application/json" -d '{"type": "TEXT", "options": "NOT NULL DEFAULT default_value"}' http://localhost:3030/api/tables/users/new_column
 
-async fn route_table_update_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_update_column(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     // payload = {
     //     "type": "TEXT",
     //     "options": "NOT NULL"
@@ -1575,10 +1626,13 @@ async fn route_table_update_column(State(state): State<Arc<AppState>>, Path((tab
 
     (StatusCode::OK, response.to_string())
 }
-// test put/api/tables/users/new_column
-// curl -X PUT -H "Content-Type: application/json" -d '{"type": "TEXT", "options": "NOT NULL DEFAULT default_value"}' http://localhost:3030/api/tables/users/new_column
 
-async fn route_table_rename_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+async fn route_table_rename_column(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path((table, column)): Path<(String, String)>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
     // payload = {
     //     "name": "new_name",
     // }
@@ -1600,11 +1654,14 @@ async fn route_table_rename_column(State(state): State<Arc<AppState>>, Path((tab
 
     (StatusCode::OK, response.to_string())
 }
-// test patch/api/tables/users/new_column
-// curl -X PATCH -H "Content-Type: application/json" -d '{"name": "new_name"}' http://localhost:3030/api/tables/users/new_column
 
-async fn route_table_drop_column(State(state): State<Arc<AppState>>, Path((table, column)): Path<(String, String)>) -> impl IntoResponse {
-   // original_name == column
+async fn route_table_drop_column(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path((table, column)): Path<(String, String)>) -> impl IntoResponse {
+    match middleware_auth(State(state.clone()), headers) {
+        true => (),
+        false => return (StatusCode::UNAUTHORIZED, format!("Unauthorized")),
+    };
+
+    // original_name == column
 
     match db_alter_table_drop_column(&table, &column) {
         Ok(_) => (),
@@ -1620,5 +1677,3 @@ async fn route_table_drop_column(State(state): State<Arc<AppState>>, Path((table
 
     (StatusCode::OK, response.to_string())
 }
-// test delete/api/tables/users/new_column
-// curl -X DELETE http://localhost:3030/api/tables/users/new_column
