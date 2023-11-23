@@ -13,17 +13,17 @@
   - [x] cors allow origin
   - [x] cors allow headers (content type and auth_token)
 - [ ] CRUD sessions
-- [ ] verify token middleware
 - [ ] CRUD tables frontend
 - [ ] update function loadTable
 - [ ] fix serve client files from base
 
 
 
-v2
+v2 -- check (https://github.com/thanipro/Axum-Rust-Rest-Api-Template)
 - [ ] import from csv, excel
 - [ ] import from supabase
 - [ ] create seperate keys for admin and normal users and verifiy/issue against them depending on user level
+- [ ] verify token middleware
 - [ ] restructure axum layout
 - [ ] logging to files and with better description
 - [ ] tests
