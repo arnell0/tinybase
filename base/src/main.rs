@@ -1446,7 +1446,7 @@ async fn post_session(State(state): State<Arc<AppState>>, Json(payload): Json<se
     (StatusCode::OK, response.to_string())
 }
 
-
+,,0
 // CRUD TABLE ROUTES
 async fn route_table_create(State(state): State<Arc<AppState>>, headers: header::HeaderMap, Path(table): Path<String>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
     match middleware_auth(State(state.clone()), headers) {
